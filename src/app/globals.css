@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* shadcn/ui CSS vars — mappés sur la palette du projet */
+    --background: 225 13% 8%;         /* #0f1117 */
+    --foreground: 214 32% 91%;        /* #f1f5f9 */
+    --card: 228 25% 14%;              /* #1a1d2e */
+    --card-foreground: 214 32% 91%;
+    --popover: 228 25% 14%;
+    --popover-foreground: 214 32% 91%;
+    --primary: 142 69% 58%;           /* #4ade80 */
+    --primary-foreground: 225 13% 8%;
+    --secondary: 228 30% 20%;         /* #252840 */
+    --secondary-foreground: 214 32% 91%;
+    --muted: 228 30% 20%;
+    --muted-foreground: 215 20% 65%;  /* #94a3b8 */
+    --accent: 48 96% 53%;             /* #facc15 */
+    --accent-foreground: 225 13% 8%;
+    --destructive: 0 91% 71%;         /* #f87171 */
+    --destructive-foreground: 225 13% 8%;
+    --border: 231 28% 25%;            /* #2e3150 */
+    --input: 228 30% 20%;
+    --ring: 142 69% 58%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-app text-foreground font-sans antialiased;
+    color-scheme: dark;
+  }
+
+  /* Scrollbar sombre */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-app;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-subtle rounded-full;
+  }
+}
+
+@layer components {
+  /* Chiffres tabulaires pour les scores */
+  .tabular-scores {
+    @apply font-mono tabular-nums;
+  }
+}
