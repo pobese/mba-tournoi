@@ -9,6 +9,7 @@ import type { BracketMatchView } from '@/components/tournament/classic/bracket-t
 import { TournamentHeaderActions } from '@/components/tournament/TournamentHeaderActions'
 import { TOURNAMENT_TYPE_LABELS, TOURNAMENT_STATUS_LABELS, AMERICAN_MIN_GAP } from '@/lib/constants'
 import { computeEvolution, computeEncounters } from '@/lib/algorithms/american-analytics'
+import { getTournamentPermissions } from '@/lib/permissions'
 import type { Tournament, RoundsConfig, AmericanConfig, ClassicConfig } from '@/types/app'
 import type { RoundsStatsRow } from '@/hooks/useRealtime'
 import type { RoundsMatchInfo, ByePlayerInfo } from '@/components/tournament/rounds/RoundsDashboard'
@@ -332,6 +333,10 @@ export default async function TournamentPage({ params }: Props) {
   logSupabaseError('TournamentPage playerCount', playerCountError)
   logSupabaseError('TournamentPage tournamentPlayers', tPlayersError)
 
+  // Droits : suppression réservée au propriétaire (canDelete) ; édition ouverte
+  // aux membres acceptés (appliqué côté Server Actions + RLS).
+  const permissions = await getTournamentPermissions(tournament.id, user.id)
+
   const tournamentPlayers = (tPlayersRaw ?? [])
     .filter((tp): tp is RawTournamentPlayer & { player: { name: string; level: number } } => tp.player !== null)
     .map((tp) => ({ id: tp.player_id, name: tp.player.name, level: tp.player.level }))
@@ -371,6 +376,7 @@ export default async function TournamentPage({ params }: Props) {
               tournamentType={tournament.type}
               config={config}
               playerCount={playerCount ?? 8}
+              canDelete={permissions.canDelete}
             />
           }
         />
@@ -434,6 +440,7 @@ export default async function TournamentPage({ params }: Props) {
               tournamentType={tournament.type}
               config={tournament.config as unknown as AmericanConfig}
               playerCount={playerCount ?? 8}
+              canDelete={permissions.canDelete}
             />
           }
         />
@@ -554,6 +561,7 @@ export default async function TournamentPage({ params }: Props) {
               tournamentType={tournament.type}
               config={classicConfig}
               playerCount={playerCount ?? 8}
+              canDelete={permissions.canDelete}
             />
           }
         />

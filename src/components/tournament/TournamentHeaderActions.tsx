@@ -28,6 +28,7 @@ interface Props {
   tournamentType: TournamentType
   config: Config
   playerCount?: number
+  canDelete?: boolean
 }
 
 export function TournamentHeaderActions({
@@ -37,6 +38,7 @@ export function TournamentHeaderActions({
   tournamentType,
   config,
   playerCount = 8,
+  canDelete = true,
 }: Props) {
   const router = useRouter()
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -97,18 +99,21 @@ export function TournamentHeaderActions({
             Modifier
           </Button>
         )}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setDeleteOpen(true)}
-          className="text-muted hover:text-danger hover:bg-danger/10 h-8 px-3 text-xs gap-1.5"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          Supprimer
-        </Button>
+        {canDelete && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setDeleteOpen(true)}
+            className="text-muted hover:text-danger hover:bg-danger/10 h-8 px-3 text-xs gap-1.5"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Supprimer
+          </Button>
+        )}
       </div>
 
-      {/* Delete dialog */}
+      {/* Delete dialog — propriétaire uniquement */}
+      {canDelete && (
       <AlertDialog open={deleteOpen} onOpenChange={handleDeleteOpenChange}>
         <AlertDialogContent className="bg-surface border-subtle">
           <AlertDialogHeader>
@@ -158,6 +163,7 @@ export function TournamentHeaderActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      )}
 
       {/* Edit dialog (draft only) */}
       {isDraft && (

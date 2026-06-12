@@ -17,6 +17,7 @@ import {
 } from '@/lib/tournament-db'
 import { generateRound1Random } from '@/lib/algorithms/rounds-scheduler'
 import type { RoundsConfig, Tournament } from '@/types/app'
+import { canManageTournament } from '@/lib/permissions'
 
 // Vérifie que tous les playerIds référencés sont bien inscrits au tournoi.
 // Empêche un payload client falsifié d'injecter des joueurs hors tournoi.
@@ -72,7 +73,7 @@ export async function previewRound1Draw(tournamentId: string): Promise<{
       error: unknown
     }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
   if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
 
@@ -159,7 +160,7 @@ export async function confirmRound1Draw(
       error: unknown
     }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
   if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
 
@@ -320,7 +321,7 @@ export async function startRound1Manual(
       error: unknown
     }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
   if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
 
@@ -466,7 +467,7 @@ export async function startRoundsRound(tournamentId: string) {
       error: unknown
     }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
   if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
 
@@ -529,7 +530,7 @@ export async function submitMatchScore(
     .eq('id', match.tournament_id)
     .single() as { data: { created_by: string } | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
 
   // Calculer totaux de points et winner par nombre de sets gagnés
   const scoreTeam1 = sets.reduce((acc, s) => acc + s.t1, 0)
@@ -591,7 +592,7 @@ export async function resetMatchScore(matchId: string) {
     .eq('id', match.tournament_id)
     .single() as { data: { created_by: string } | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
 
   await supabase
     .from('matches')
@@ -638,7 +639,7 @@ export async function closeRoundsRound(roundId: string) {
       error: unknown
     }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.type !== 'rounds') return { error: "Ce round n'appartient pas à un tournoi rounds" }
   if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
 
@@ -682,7 +683,7 @@ export async function finishRoundsTournament(tournamentId: string) {
       error: unknown
     }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
   if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
 

@@ -197,6 +197,27 @@ export const UpdateTournamentSchema = z.object({
   config: z.record(z.unknown()),
 })
 
+// ─── Membres de l'organisation ─────────────────────────────────────────────────
+export const InviteMemberSchema = z.object({
+  ownerId: z.string().uuid(),
+  email: z.string().email('Email invalide'),
+  role: z.enum(['admin', 'editor']),
+})
+export type InviteMemberInput = z.infer<typeof InviteMemberSchema>
+
+export const UpdateMemberRoleSchema = z.object({
+  memberId: z.string().uuid(),
+  role: z.enum(['admin', 'editor']),
+})
+
+export const MemberIdSchema = z.object({
+  memberId: z.string().uuid(),
+})
+
+export const InvitationIdSchema = z.object({
+  invitationId: z.string().uuid(),
+})
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const LoginSchema = z.object({
   email: z.string().email('Email invalide'),

@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { LayoutDashboard, Users, Trophy, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Trophy, Settings, LogOut } from 'lucide-react'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/players', label: 'Joueurs', icon: Users },
   { href: '/tournaments', label: 'Tournois', icon: Trophy },
+  { href: '/settings', label: 'Paramètres', icon: Settings },
 ]
 
 export default async function AppLayout({

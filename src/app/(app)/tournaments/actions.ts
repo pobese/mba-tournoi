@@ -18,6 +18,7 @@ import {
 } from '@/lib/algorithms/american-scheduler'
 import { insertAmericanTeam, generateClassicPools } from '@/lib/tournament-db'
 import type { AmericanConfig, ClassicConfig, RoundsConfig } from '@/types/app'
+import { resolveCreateContext, canManageTournament } from '@/lib/permissions'
 
 // Paire d'équipe (classique double) transmise par le wizard.
 interface ClassicTeamPair {
@@ -39,12 +40,19 @@ export async function createTournament(input: unknown) {
   } = await supabase.auth.getUser()
   if (authError || !user) redirect('/login')
 
+  // Droit de création : owner (pour lui-même) ou membre admin (pour l'organisation).
+  // Un membre editor ne peut pas créer ; created_by = l'organisation le cas échéant.
+  const createCtx = await resolveCreateContext(supabase, user.id)
+  if (!createCtx.canCreate) {
+    return { error: "Votre rôle (éditeur) ne permet pas de créer des tournois." }
+  }
+
   const { name, type, playerIds, config, teams } = parsed.data
 
   // 1. Insert tournament
   const { data: tournament, error: tError } = await supabase
     .from('tournaments')
-    .insert({ name, type, config, created_by: user.id })
+    .insert({ name, type, config, created_by: createCtx.ownerId })
     .select('id')
     .single() as { data: { id: string } | null; error: unknown }
 
@@ -66,7 +74,8 @@ export async function createTournament(input: unknown) {
 
   if (tpError) {
     console.error('createTournament players:', tpError)
-    await supabase.from('tournaments').delete().eq('id', tournamentId)
+    // Rollback via service role : un admin-membre n'a pas le droit DELETE (owner only).
+    await createServiceRoleClient().from('tournaments').delete().eq('id', tournamentId)
     return { error: "Impossible d'associer les joueurs" }
   }
 
@@ -84,7 +93,8 @@ export async function createTournament(input: unknown) {
     }
   } catch (err) {
     console.error('createTournament generate:', err)
-    await supabase.from('tournaments').delete().eq('id', tournamentId)
+    // Rollback via service role : un admin-membre n'a pas le droit DELETE (owner only).
+    await createServiceRoleClient().from('tournaments').delete().eq('id', tournamentId)
     return {
       error: err instanceof Error ? err.message : 'Erreur lors de la génération des matchs',
     }
@@ -255,7 +265,7 @@ export async function updateTournament(input: unknown) {
     .eq('id', parsed.data.tournamentId)
     .single() as { data: { created_by: string; type: string; status: string } | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.status !== 'draft') return { error: 'Seuls les tournois en brouillon peuvent être modifiés' }
 
   // Valider le config selon le type du tournoi

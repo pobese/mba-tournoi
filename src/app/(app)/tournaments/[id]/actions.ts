@@ -17,6 +17,7 @@ import type {
 } from '@/lib/algorithms/american-scheduler'
 import { insertAmericanTeam } from '@/lib/tournament-db'
 import type { Tournament, AmericanConfig } from '@/types/app'
+import { canManageTournament } from '@/lib/permissions'
 
 // ─── Update match score ────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ export async function updateMatchScore(input: unknown) {
     .eq('id', parsed.data.tournamentId)
     .single() as { data: Pick<Tournament, 'created_by'> | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) {
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) {
     return { error: 'Permission refusée' }
   }
 
@@ -81,7 +82,7 @@ export async function closeRound(tournamentId: string, roundId: string) {
       error: unknown
     }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
 
   // Mode rounds : la clôture passe par rounds-actions.closeRoundsRound (boutons
@@ -237,7 +238,7 @@ export async function submitAmericanScore(
     .eq('id', match.tournament_id)
     .single() as { data: { created_by: string } | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
 
   const scoreTeam1 = sets.reduce((acc, s) => acc + s.t1, 0)
   const scoreTeam2 = sets.reduce((acc, s) => acc + s.t2, 0)
@@ -295,7 +296,7 @@ export async function resetAmericanScore(matchId: string) {
     .eq('id', match.tournament_id)
     .single() as { data: { created_by: string } | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
 
   const { error } = await supabase
     .from('matches')
@@ -332,7 +333,7 @@ export async function startNextAmericanRound(tournamentId: string) {
     .eq('id', tournamentId)
     .single() as { data: Pick<Tournament, 'created_by' | 'status' | 'type' | 'config'> | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
   if (tournament.type !== 'american') return { error: 'Action disponible uniquement pour le format américain' }
 
@@ -425,7 +426,7 @@ export async function finishAmericanTournament(tournamentId: string) {
     .eq('id', tournamentId)
     .single() as { data: Pick<Tournament, 'created_by' | 'status' | 'type'> | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
   if (tournament.type !== 'american') return { error: 'Action disponible uniquement pour le format américain' }
 
@@ -589,7 +590,7 @@ export async function resetMatchScore(matchId: string) {
     .eq('id', match.tournament_id)
     .single() as { data: { created_by: string } | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
 
   const { error } = await supabase
     .from('matches')
@@ -627,7 +628,7 @@ export async function startTournament(tournamentId: string) {
     .eq('id', tournamentId)
     .single() as { data: Pick<Tournament, 'created_by' | 'status'> | null; error: unknown }
 
-  if (!tournament || tournament.created_by !== user.id) return { error: 'Permission refusée' }
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
   if (tournament.status !== 'draft') return { error: 'Le tournoi a déjà démarré' }
 
   const { error } = await supabase

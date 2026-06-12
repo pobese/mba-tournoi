@@ -33,13 +33,15 @@ import {
   type PoolCourtState,
 } from '@/lib/algorithms/classic-bracket'
 import type { ClassicConfig } from '@/types/app'
+import { canManageTournament } from '@/lib/permissions'
 
 // ─── Helpers communs ──────────────────────────────────────────────────────────
 
-// Auth + propriété + colonnes demandées du tournoi en UN passage réseau :
+// Auth + droit de gestion + colonnes demandées du tournoi en UN passage réseau :
 // getUser() et le SELECT tournaments partent en parallèle, et les actions qui
 // ont besoin d'autres colonnes (config, current_phase…) les récupèrent ici au
 // lieu de refaire un SELECT. `columns` doit inclure `created_by`.
+// Autorise le créateur ET les membres acceptés de son organisation.
 async function fetchOwnedTournament<T extends { created_by: string }>(
   supabase: SupabaseClient,
   tournamentId: string,
@@ -53,13 +55,14 @@ async function fetchOwnedTournament<T extends { created_by: string }>(
 
   // Cast : client Supabase non typé <Database> — shape garantie par `columns`.
   const tournament = result.data as T | null
-  if (!tournament || tournament.created_by !== auth.data.user.id) {
+  if (!tournament) return { error: 'Permission refusée' }
+  if (!(await canManageTournament(supabase, tournament.created_by, auth.data.user.id))) {
     return { error: 'Permission refusée' }
   }
   return { error: null, tournament }
 }
 
-// Vérifie l'authentification et la propriété du tournoi. Renvoie l'erreur ou null.
+// Vérifie l'authentification et le droit de gestion (créateur OU membre).
 async function assertOwner(
   supabase: SupabaseClient,
   tournamentId: string,
