@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { LayoutDashboard, Users, Trophy, Settings, LogOut } from 'lucide-react'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -45,7 +46,8 @@ export default async function AppLayout({
           ))}
         </nav>
 
-        <div className="p-3 border-t border-subtle">
+        <div className="p-3 border-t border-subtle space-y-1">
+          <ThemeToggle />
           <form action="/api/auth/logout" method="POST">
             <button
               type="submit"
@@ -60,6 +62,14 @@ export default async function AppLayout({
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Header mobile (sidebar masquée < lg) */}
+        <header className="lg:hidden flex items-center justify-between border-b border-subtle bg-surface px-4 py-3">
+          <span className="font-display font-extrabold text-lg text-white">
+            MBA <span className="text-primary">Tournoi</span>
+          </span>
+          <ThemeToggle variant="compact" />
+        </header>
+
         <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 lg:px-8">
           {children}
         </main>

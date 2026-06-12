@@ -225,7 +225,7 @@ export function RoundsMatchCard({
   const inputCls = (side: 1 | 2, winnerInSet: 0 | 1 | 2, done: boolean) =>
     `w-14 h-12 sm:h-10 text-center text-lg sm:text-base font-display font-bold rounded-lg border
      bg-surface-alt text-white tabular-nums focus:outline-none focus:ring-2 focus:ring-primary
-     focus:border-primary transition disabled:opacity-70 disabled:cursor-not-allowed
+     focus:border-primary transition disabled:opacity-70 disabled:cursor-not-allowed ${done ? 'score-final' : ''}
      ${winnerInSet === side && done ? 'border-primary/50' : 'border-subtle'}`
 
   // Fonction de rendu (PAS un composant <SetRow/>) : appelée inline pour que les
@@ -238,7 +238,7 @@ export function RoundsMatchCard({
         {setsToWin === 2 && (
           <span className="text-muted text-xs w-10 shrink-0">Set {idx + 1}</span>
         )}
-        <div className={`flex-1 min-w-0 text-sm font-medium truncate ${isDone && winnerSide === 1 && idx === 0 ? 'text-primary' : 'text-white'}`}>
+        <div className={`flex-1 min-w-0 text-sm font-medium truncate ${isDone && winnerSide === 1 && idx === 0 ? 'text-primary winner-name' : 'text-white'}`}>
           {idx === 0 ? teamLabel(team1) : ''}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -260,7 +260,7 @@ export function RoundsMatchCard({
             className={inputCls(2, w, isDone)}
           />
         </div>
-        <div className={`flex-1 min-w-0 text-sm font-medium truncate text-right ${isDone && winnerSide === 2 && idx === 0 ? 'text-primary' : 'text-white'}`}>
+        <div className={`flex-1 min-w-0 text-sm font-medium truncate text-right ${isDone && winnerSide === 2 && idx === 0 ? 'text-primary winner-name' : 'text-white'}`}>
           {idx === 0 ? teamLabel(team2) : ''}
         </div>
       </div>

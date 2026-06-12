@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Barlow_Condensed, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
+import { ThemeInitializer } from '@/components/ThemeInitializer'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -36,9 +37,11 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
+      data-theme="dark"
       className={`${inter.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} dark`}
     >
       <body>
+        <ThemeInitializer />
         <Providers>{children}</Providers>
       </body>
     </html>

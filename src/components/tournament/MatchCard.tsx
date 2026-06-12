@@ -157,7 +157,7 @@ export function MatchCard({
 
       <div className="flex items-center gap-2">
         {/* Team 1 */}
-        <div className={`flex-1 min-w-0 text-sm font-medium truncate ${winner === 1 ? 'text-primary' : 'text-white'}`}>
+        <div className={`flex-1 min-w-0 text-sm font-medium truncate ${winner === 1 ? 'text-primary winner-name' : 'text-white'}`}>
           {teamLabel(team1)}
         </div>
 
@@ -173,7 +173,7 @@ export function MatchCard({
             aria-label={`Score ${teamLabel(team1)}`}
             className={`w-14 h-12 sm:h-10 text-center text-lg sm:text-base font-display font-bold rounded-lg border bg-surface-alt text-white tabular-nums
               focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition
-              disabled:opacity-70 disabled:cursor-not-allowed
+              disabled:opacity-70 disabled:cursor-not-allowed ${isDone ? 'score-final' : ''}
               ${winner === 1 && isDone ? 'border-primary/50' : 'border-subtle'}`}
           />
           <span className="text-muted font-bold">—</span>
@@ -187,13 +187,13 @@ export function MatchCard({
             aria-label={`Score ${teamLabel(team2)}`}
             className={`w-14 h-12 sm:h-10 text-center text-lg sm:text-base font-display font-bold rounded-lg border bg-surface-alt text-white tabular-nums
               focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition
-              disabled:opacity-70 disabled:cursor-not-allowed
+              disabled:opacity-70 disabled:cursor-not-allowed ${isDone ? 'score-final' : ''}
               ${winner === 2 && isDone ? 'border-primary/50' : 'border-subtle'}`}
           />
         </div>
 
         {/* Team 2 */}
-        <div className={`flex-1 min-w-0 text-sm font-medium truncate text-right ${winner === 2 ? 'text-primary' : 'text-white'}`}>
+        <div className={`flex-1 min-w-0 text-sm font-medium truncate text-right ${winner === 2 ? 'text-primary winner-name' : 'text-white'}`}>
           {teamLabel(team2)}
         </div>
       </div>

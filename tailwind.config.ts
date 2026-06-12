@@ -10,25 +10,29 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Design system — mode sombre uniquement
-        app: '#0f1117',
-        surface: '#1a1d2e',
-        'surface-alt': '#252840',
-        subtle: '#2e3150',
+        // Design system — piloté par CSS variables (cf. globals.css [data-theme]).
+        // Format rgb(var / <alpha-value>) → les modificateurs d'opacité Tailwind
+        // (bg-primary/20, border-subtle/50…) fonctionnent dans les deux thèmes.
+        app: 'rgb(var(--bg-app) / <alpha-value>)',
+        surface: 'rgb(var(--bg-surface) / <alpha-value>)',
+        'surface-alt': 'rgb(var(--bg-surface-alt) / <alpha-value>)',
+        subtle: 'rgb(var(--border-subtle) / <alpha-value>)',
         primary: {
-          DEFAULT: '#4ade80',
-          dim: '#166534',
-          foreground: '#0f1117',
+          DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
+          dim: 'rgb(var(--color-primary-dim) / <alpha-value>)',
+          foreground: 'rgb(var(--color-primary-foreground) / <alpha-value>)',
         },
         accent: {
-          DEFAULT: '#facc15',
-          foreground: '#0f1117',
+          DEFAULT: 'rgb(var(--color-accent) / <alpha-value>)',
+          foreground: 'rgb(var(--color-accent-foreground) / <alpha-value>)',
         },
         muted: {
-          DEFAULT: '#94a3b8',
-          foreground: '#94a3b8',
+          DEFAULT: 'rgb(var(--color-text-muted) / <alpha-value>)',
+          foreground: 'rgb(var(--color-text-muted) / <alpha-value>)',
         },
-        danger: '#f87171',
+        special: 'rgb(var(--color-special, 191 95 255) / <alpha-value>)',
+        text: 'rgb(var(--color-text) / <alpha-value>)',
+        danger: 'rgb(var(--color-danger) / <alpha-value>)',
         // shadcn/ui CSS variable tokens (pointed at our palette)
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',

@@ -3,28 +3,93 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* shadcn/ui CSS vars — mappés sur la palette du projet */
-    --background: 225 13% 8%;         /* #0f1117 */
-    --foreground: 214 32% 91%;        /* #f1f5f9 */
-    --card: 228 25% 14%;              /* #1a1d2e */
+  /*
+   * Thèmes pilotés par l'attribut [data-theme] sur <html>.
+   * `:root` porte les valeurs « dark » par défaut (fallback sans flash même si
+   * l'attribut est absent), `[data-theme="dark"]` les répète pour l'explicite,
+   * `[data-theme="fluo"]` ne fait qu'overrider.
+   *
+   * Deux familles de variables coexistent :
+   *  - sémantiques (--bg-*, --color-*) consommées par tailwind.config.ts
+   *  - tokens shadcn/ui en HSL (--background, --primary, …) pour que les
+   *    composants shadcn suivent aussi le thème.
+   */
+  :root,
+  :root[data-theme='dark'] {
+    /* Palette sémantique — mode sombre (triplets RGB pour l'alpha Tailwind) */
+    --bg-app: 15 17 23; /* #0f1117 */
+    --bg-surface: 26 29 46; /* #1a1d2e */
+    --bg-surface-alt: 37 40 64; /* #252840 */
+    --border-subtle: 46 49 80; /* #2e3150 */
+    --color-primary: 74 222 128; /* #4ade80 */
+    --color-primary-dim: 22 101 52; /* #166534 */
+    --color-primary-foreground: 15 17 23; /* #0f1117 */
+    --color-accent: 250 204 21; /* #facc15 */
+    --color-accent-foreground: 15 17 23; /* #0f1117 */
+    --color-danger: 248 113 113; /* #f87171 */
+    --color-special: 191 95 255; /* #bf5fff */
+    --color-text: 241 245 249; /* #f1f5f9 */
+    --color-text-muted: 148 163 184; /* #94a3b8 */
+
+    /* Tokens shadcn/ui (HSL) — mode sombre */
+    --background: 225 13% 8%; /* #0f1117 */
+    --foreground: 214 32% 91%; /* #f1f5f9 */
+    --card: 228 25% 14%; /* #1a1d2e */
     --card-foreground: 214 32% 91%;
     --popover: 228 25% 14%;
     --popover-foreground: 214 32% 91%;
-    --primary: 142 69% 58%;           /* #4ade80 */
+    --primary: 142 69% 58%; /* #4ade80 */
     --primary-foreground: 225 13% 8%;
-    --secondary: 228 30% 20%;         /* #252840 */
+    --secondary: 228 30% 20%; /* #252840 */
     --secondary-foreground: 214 32% 91%;
     --muted: 228 30% 20%;
-    --muted-foreground: 215 20% 65%;  /* #94a3b8 */
-    --accent: 48 96% 53%;             /* #facc15 */
+    --muted-foreground: 215 20% 65%; /* #94a3b8 */
+    --accent: 48 96% 53%; /* #facc15 */
     --accent-foreground: 225 13% 8%;
-    --destructive: 0 91% 71%;         /* #f87171 */
+    --destructive: 0 91% 71%; /* #f87171 */
     --destructive-foreground: 225 13% 8%;
-    --border: 231 28% 25%;            /* #2e3150 */
+    --border: 231 28% 25%; /* #2e3150 */
     --input: 228 30% 20%;
     --ring: 142 69% 58%;
     --radius: 0.5rem;
+  }
+
+  :root[data-theme='fluo'] {
+    /* Palette sémantique — mode fluo (triplets RGB pour l'alpha Tailwind) */
+    --bg-app: 13 13 13; /* #0d0d0d */
+    --bg-surface: 26 26 46; /* #1a1a2e */
+    --bg-surface-alt: 22 33 62; /* #16213e */
+    --border-subtle: 42 42 74; /* #2a2a4a */
+    --color-primary: 57 255 20; /* #39ff14 */
+    --color-primary-dim: 10 61 2; /* #0a3d02 */
+    --color-primary-foreground: 13 13 13; /* #0d0d0d */
+    --color-accent: 255 230 0; /* #ffe600 */
+    --color-accent-foreground: 13 13 13; /* #0d0d0d */
+    --color-danger: 255 77 109; /* #ff4d6d */
+    --color-special: 191 95 255; /* #bf5fff */
+    --color-text: 240 240 240; /* #f0f0f0 */
+    --color-text-muted: 160 160 176; /* #a0a0b0 */
+
+    /* Tokens shadcn/ui (HSL) — mode fluo */
+    --background: 0 0% 5%; /* #0d0d0d */
+    --foreground: 0 0% 94%; /* #f0f0f0 */
+    --card: 240 28% 14%; /* #1a1a2e */
+    --card-foreground: 0 0% 94%;
+    --popover: 240 28% 14%;
+    --popover-foreground: 0 0% 94%;
+    --primary: 111 100% 54%; /* #39ff14 */
+    --primary-foreground: 0 0% 5%;
+    --secondary: 224 48% 16%; /* #16213e */
+    --secondary-foreground: 0 0% 94%;
+    --muted: 224 48% 16%;
+    --muted-foreground: 240 9% 66%; /* #a0a0b0 */
+    --accent: 54 100% 50%; /* #ffe600 */
+    --accent-foreground: 0 0% 5%;
+    --destructive: 349 100% 65%; /* #ff4d6d */
+    --destructive-foreground: 0 0% 5%;
+    --border: 240 28% 23%; /* #2a2a4a */
+    --input: 224 48% 16%;
+    --ring: 111 100% 54%;
   }
 
   * {
@@ -36,7 +101,7 @@
     color-scheme: dark;
   }
 
-  /* Scrollbar sombre */
+  /* Scrollbar — suit le thème via les variables */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -53,5 +118,70 @@
   /* Chiffres tabulaires pour les scores */
   .tabular-scores {
     @apply font-mono tabular-nums;
+  }
+}
+
+/*
+ * Touches spéciales du thème fluo.
+ * Hors @layer → priorité sur les utilitaires Tailwind sans !important.
+ * Marqueurs (.winner-name, .score-final, .podium-*) : NO-OP en thème dark,
+ * la couleur de base venant déjà des classes sémantiques (text-primary…).
+ */
+
+/* Scores validés en jaune fluo */
+:root[data-theme='fluo'] .score-final {
+  color: rgb(var(--color-accent));
+}
+
+/* Nom du gagnant : glow vert fluo (la couleur vient de text-primary) */
+:root[data-theme='fluo'] .winner-name {
+  text-shadow: 0 0 8px rgb(var(--color-primary));
+}
+
+/* Podium : 1er jaune · 2e violet · 3e corail, avec glow */
+:root[data-theme='fluo'] .podium-1 {
+  color: rgb(var(--color-accent));
+  text-shadow: 0 0 8px rgb(var(--color-accent));
+}
+:root[data-theme='fluo'] .podium-2 {
+  color: rgb(var(--color-special));
+  text-shadow: 0 0 8px rgb(var(--color-special));
+}
+:root[data-theme='fluo'] .podium-3 {
+  color: rgb(var(--color-danger));
+  text-shadow: 0 0 8px rgb(var(--color-danger));
+}
+
+/* Barre de progression : dégradé animé vert → jaune (shimmer CSS) */
+:root[data-theme='fluo'] .progress-fill {
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--color-primary)),
+    rgb(var(--color-accent)),
+    rgb(var(--color-primary))
+  );
+  background-size: 200% 100%;
+  animation: fluo-shimmer 2s linear infinite;
+}
+
+/* Boutons primaires (shadcn variant default) : glow vert au survol.
+   Fond vert + texte noir déjà fournis par les tokens du thème fluo. */
+:root[data-theme='fluo'] .btn-primary:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 12px rgb(var(--color-primary));
+}
+
+@keyframes fluo-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='fluo'] .progress-fill {
+    animation: none;
   }
 }

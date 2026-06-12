@@ -64,7 +64,7 @@ export function RoundsStandingsTable({
                   animate={{ opacity: 1 }}
                   className="hover:bg-surface-alt/50 transition-colors"
                 >
-                  <td className="py-2.5 text-muted font-mono tabular-nums text-xs">
+                  <td className={`py-2.5 text-muted font-mono tabular-nums text-xs ${i === 0 ? 'podium-1' : i === 1 ? 'podium-2' : i === 2 ? 'podium-3' : ''}`}>
                     {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : row.currentRank ?? '—'}
                   </td>
                   <td className="py-2.5 text-white font-medium truncate max-w-[120px]">

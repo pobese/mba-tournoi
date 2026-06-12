@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { MembersManager, type MemberRow } from '@/components/settings/MembersManager'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,12 @@ export default async function SettingsPage() {
         title="Paramètres"
         description="Gérez les membres de votre organisation"
       />
+      <section className="rounded-xl border border-subtle bg-surface p-5 sm:p-6">
+        <h2 className="mb-1 font-display text-lg font-extrabold text-white">Apparence</h2>
+        <p className="mb-5 text-sm text-muted">Choisissez le thème de l&apos;interface.</p>
+        <ThemeToggle variant="cards" />
+      </section>
+
       <section className="rounded-xl border border-subtle bg-surface p-5 sm:p-6">
         <h2 className="mb-1 font-display text-lg font-extrabold text-white">Membres de l&apos;organisation</h2>
         <p className="mb-5 text-sm text-muted">

@@ -98,7 +98,7 @@ export function AmericanEvolutionChart({ rounds, series }: AmericanEvolutionChar
         {yTicks.map((t, i) => {
           const y = PAD.top + t * PLOT_H
           return (
-            <line key={i} x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="#2e3150" strokeWidth={1} />
+            <line key={i} x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="rgb(var(--border-subtle))" strokeWidth={1} />
           )
         })}
 

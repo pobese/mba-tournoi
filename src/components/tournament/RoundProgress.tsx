@@ -26,7 +26,7 @@ export function RoundProgress({
       </div>
       <div className="h-1.5 bg-surface-alt rounded-full overflow-hidden">
         <div
-          className="h-full bg-primary rounded-full transition-all duration-300"
+          className="progress-fill h-full bg-primary rounded-full transition-all duration-300"
           style={{ width: `${pct}%` }}
         />
       </div>
