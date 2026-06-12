@@ -55,40 +55,41 @@
   }
 
   :root[data-theme='fluo'] {
-    /* Palette sémantique — mode fluo (triplets RGB pour l'alpha Tailwind) */
-    --bg-app: 13 13 13; /* #0d0d0d */
-    --bg-surface: 26 26 46; /* #1a1a2e */
-    --bg-surface-alt: 22 33 62; /* #16213e */
-    --border-subtle: 42 42 74; /* #2a2a4a */
-    --color-primary: 57 255 20; /* #39ff14 */
-    --color-primary-dim: 10 61 2; /* #0a3d02 */
-    --color-primary-foreground: 13 13 13; /* #0d0d0d */
-    --color-accent: 255 230 0; /* #ffe600 */
-    --color-accent-foreground: 13 13 13; /* #0d0d0d */
-    --color-danger: 255 77 109; /* #ff4d6d */
-    --color-special: 191 95 255; /* #bf5fff */
-    --color-text: 240 240 240; /* #f0f0f0 */
-    --color-text-muted: 160 160 176; /* #a0a0b0 */
+    /* Palette sémantique — mode fluo SATURÉ (triplets RGB pour l'alpha Tailwind).
+       Fonds quasi-noirs pour faire claquer les fluos. */
+    --bg-app: 6 6 8; /* #060608 */
+    --bg-surface: 14 14 26; /* #0E0E1A */
+    --bg-surface-alt: 20 20 38; /* #141426 */
+    --border-subtle: 22 59 25; /* vert sombre teinté (#39FF14 ~19% sur surface) */
+    --color-primary: 57 255 20; /* #39FF14 vert fluo pur */
+    --color-primary-dim: 13 46 5; /* #0D2E05 */
+    --color-primary-foreground: 0 0 0; /* texte noir sur fluo */
+    --color-accent: 255 230 0; /* #FFE600 jaune fluo pur */
+    --color-accent-foreground: 0 0 0;
+    --color-danger: 255 45 85; /* #FF2D55 corail fluo */
+    --color-special: 204 0 255; /* #CC00FF violet fluo pur */
+    --color-text: 255 255 255; /* #FFFFFF */
+    --color-text-muted: 136 136 170; /* #8888AA */
 
     /* Tokens shadcn/ui (HSL) — mode fluo */
-    --background: 0 0% 5%; /* #0d0d0d */
-    --foreground: 0 0% 94%; /* #f0f0f0 */
-    --card: 240 28% 14%; /* #1a1a2e */
-    --card-foreground: 0 0% 94%;
-    --popover: 240 28% 14%;
-    --popover-foreground: 0 0% 94%;
-    --primary: 111 100% 54%; /* #39ff14 */
-    --primary-foreground: 0 0% 5%;
-    --secondary: 224 48% 16%; /* #16213e */
-    --secondary-foreground: 0 0% 94%;
-    --muted: 224 48% 16%;
-    --muted-foreground: 240 9% 66%; /* #a0a0b0 */
-    --accent: 54 100% 50%; /* #ffe600 */
-    --accent-foreground: 0 0% 5%;
-    --destructive: 349 100% 65%; /* #ff4d6d */
-    --destructive-foreground: 0 0% 5%;
-    --border: 240 28% 23%; /* #2a2a4a */
-    --input: 224 48% 16%;
+    --background: 240 14% 3%; /* #060608 */
+    --foreground: 0 0% 100%; /* #ffffff */
+    --card: 240 30% 8%; /* #0E0E1A */
+    --card-foreground: 0 0% 100%;
+    --popover: 240 30% 8%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 111 100% 54%; /* #39FF14 */
+    --primary-foreground: 0 0% 0%;
+    --secondary: 240 31% 11%; /* #141426 */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 240 31% 11%;
+    --muted-foreground: 240 17% 60%; /* #8888AA */
+    --accent: 54 100% 50%; /* #FFE600 */
+    --accent-foreground: 0 0% 0%;
+    --destructive: 349 100% 59%; /* #FF2D55 */
+    --destructive-foreground: 0 0% 0%;
+    --border: 125 46% 16%; /* vert sombre teinté */
+    --input: 240 31% 11%;
     --ring: 111 100% 54%;
   }
 
@@ -121,62 +122,107 @@
   }
 }
 
-/*
- * Touches spéciales du thème fluo.
+/* ============================================================
+ * THÈME FLUO — effets « qui claquent » (glow / shimmer / washes).
  * Hors @layer → priorité sur les utilitaires Tailwind sans !important.
- * Marqueurs (.winner-name, .score-final, .podium-*) : NO-OP en thème dark,
- * la couleur de base venant déjà des classes sémantiques (text-primary…).
- */
+ * Tout est scopé [data-theme='fluo'] → NO-OP strict en thème dark.
+ * ============================================================ */
 
-/* Scores validés en jaune fluo */
+/* Wash de couleur sur tout le fond de l'app (très faible alpha) */
+:root[data-theme='fluo'] body {
+  background-image:
+    radial-gradient(ellipse at 0% 0%, #39ff1412 0%, transparent 42%),
+    radial-gradient(ellipse at 100% 0%, #cc00ff12 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 120%, #ff2d5510 0%, transparent 48%);
+  background-attachment: fixed;
+}
+
+/* Tout texte vert primary : glow vert (noms gagnants, accents, logo, icônes…) */
+:root[data-theme='fluo'] .text-primary {
+  text-shadow: 0 0 8px #39ff1488;
+}
+
+/* Texte / scores accent : jaune fluo + glow */
+:root[data-theme='fluo'] .text-accent,
 :root[data-theme='fluo'] .score-final {
   color: rgb(var(--color-accent));
+  text-shadow: 0 0 10px #ffe60099;
 }
 
-/* Nom du gagnant : glow vert fluo (la couleur vient de text-primary) */
+/* Texte danger : glow corail */
+:root[data-theme='fluo'] .text-danger {
+  text-shadow: 0 0 8px #ff2d5588;
+}
+
+/* Nom du gagnant : glow vert renforcé (double halo) */
 :root[data-theme='fluo'] .winner-name {
-  text-shadow: 0 0 8px rgb(var(--color-primary));
+  text-shadow: 0 0 10px #39ff14, 0 0 22px #39ff1466;
 }
 
-/* Podium : 1er jaune · 2e violet · 3e corail, avec glow */
+/* Boutons primaires pleins (shadcn default) : vert + texte noir gras + glow */
+:root[data-theme='fluo'] .btn-primary {
+  color: #000;
+  font-weight: 700;
+  box-shadow: 0 0 16px #39ff1466, 0 0 32px #39ff1422;
+}
+:root[data-theme='fluo'] .btn-primary:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 22px #39ff1499, 0 0 44px #39ff1433;
+}
+/* Boutons « Valider » translucides : glow vert au survol (deviennent verts pleins) */
+:root[data-theme='fluo'] button[class*='bg-primary']:hover {
+  box-shadow: 0 0 16px #39ff1466;
+}
+
+/* Podium : 1er jaune · 2e violet · 3e corail, glow renforcé */
 :root[data-theme='fluo'] .podium-1 {
   color: rgb(var(--color-accent));
-  text-shadow: 0 0 8px rgb(var(--color-accent));
+  text-shadow: 0 0 10px #ffe600;
 }
 :root[data-theme='fluo'] .podium-2 {
   color: rgb(var(--color-special));
-  text-shadow: 0 0 8px rgb(var(--color-special));
+  text-shadow: 0 0 10px #cc00ff;
 }
 :root[data-theme='fluo'] .podium-3 {
   color: rgb(var(--color-danger));
-  text-shadow: 0 0 8px rgb(var(--color-danger));
+  text-shadow: 0 0 10px #ff2d55;
 }
 
-/* Barre de progression : dégradé animé vert → jaune (shimmer CSS) */
+/* Badge numéro de terrain : violet fluo (cf. marqueur .court-badge) */
+:root[data-theme='fluo'] .court-badge {
+  background: #cc00ff22;
+  border-color: #cc00ff66;
+  box-shadow: 0 0 12px #cc00ff44;
+}
+:root[data-theme='fluo'] .court-badge,
+:root[data-theme='fluo'] .court-badge * {
+  color: #cc00ff;
+  text-shadow: 0 0 6px #cc00ff88;
+}
+
+/* Barre de progression : dégradé animé vert → jaune → violet + glow */
 :root[data-theme='fluo'] .progress-fill {
-  background-image: linear-gradient(
-    90deg,
-    rgb(var(--color-primary)),
-    rgb(var(--color-accent)),
-    rgb(var(--color-primary))
-  );
+  background-image: linear-gradient(90deg, #39ff14, #ffe600, #cc00ff, #39ff14);
   background-size: 200% 100%;
   animation: fluo-shimmer 2s linear infinite;
+  box-shadow: 0 0 10px #39ff1466;
 }
 
-/* Boutons primaires (shadcn variant default) : glow vert au survol.
-   Fond vert + texte noir déjà fournis par les tokens du thème fluo. */
-:root[data-theme='fluo'] .btn-primary:hover {
-  filter: brightness(1.15);
-  box-shadow: 0 0 12px rgb(var(--color-primary));
+/* Landing — éclaboussures de couleur derrière le hero */
+:root[data-theme='fluo'] .hero-section {
+  background:
+    radial-gradient(ellipse at 20% 20%, #ff2d5526 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, #cc00ff26 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, #39ff1418 0%, transparent 60%),
+    #060608;
 }
 
 @keyframes fluo-shimmer {
   from {
-    background-position: 200% 0;
+    background-position: 0 0;
   }
   to {
-    background-position: 0 0;
+    background-position: 200% 0;
   }
 }
 

@@ -5,7 +5,7 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-app flex flex-col">
       {/* Hero */}
-      <section className="flex-1 flex flex-col items-center justify-center px-4 py-20 text-center">
+      <section className="hero-section flex-1 flex flex-col items-center justify-center px-4 py-20 text-center">
         <div className="inline-flex items-center gap-2 bg-primary-dim/30 text-primary border border-primary/30 rounded-full px-4 py-1.5 text-sm font-medium mb-8">
           <Zap className="w-3.5 h-3.5" />
           Tournois de badminton en temps réel

@@ -289,7 +289,7 @@ export function RoundsMatchCard({
         <div className="flex items-center gap-2">
           {courtNumber !== null ? (
             // Mini-terrain : rectangle vert avec filet central + numéro
-            <span className="relative grid place-items-center w-9 h-9 rounded-lg bg-primary-dim/30 border border-primary/30">
+            <span className="court-badge relative grid place-items-center w-9 h-9 rounded-lg bg-primary-dim/30 border border-primary/30">
               <span aria-hidden className="absolute inset-y-1.5 left-1/2 -translate-x-1/2 w-px bg-primary/40" />
               <span className="relative font-display font-extrabold text-primary text-sm tabular-nums">{courtNumber}</span>
             </span>
