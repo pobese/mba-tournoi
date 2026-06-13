@@ -461,6 +461,60 @@ export async function startRound1Manual(
   return { success: true }
 }
 
+// ─── resetRound1 ──────────────────────────────────────────────────────────────
+
+/**
+ * Réinitialise le round 1 : efface ses matchs, équipes temporaires, byes et
+ * statistiques, puis supprime le round → l'écran de constitution réapparaît.
+ * Autorisé uniquement tant qu'aucun round 2 n'a démarré (sinon ce serait casser
+ * l'historique des rounds suivants). Ne touche ni au tournoi ni aux inscriptions.
+ */
+export async function resetRound1(tournamentId: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/login')
+
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('created_by, type, status')
+    .eq('id', tournamentId)
+    .single() as { data: Pick<Tournament, 'created_by' | 'type' | 'status'> | null; error: unknown }
+
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
+  if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
+  if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
+
+  const { data: rounds } = await supabase
+    .from('rounds')
+    .select('round_number')
+    .eq('tournament_id', tournamentId) as { data: { round_number: number }[] | null; error: unknown }
+
+  if (!rounds || rounds.length === 0) return { error: 'Aucun round à réinitialiser' }
+  if (rounds.some((r) => r.round_number >= 2)) {
+    return { error: 'Le round 2 a déjà commencé — réinitialisation du round 1 impossible' }
+  }
+
+  // Ordre respectant les clés étrangères : matchs (réf. équipes en RESTRICT) avant
+  // équipes ; byes/stats indépendants. Seul le round 1 existe ici.
+  const steps: Array<{ table: string; query: () => PromiseLike<{ error: { code: string; message: string } | null }> }> = [
+    { table: 'matches', query: () => supabase.from('matches').delete().eq('tournament_id', tournamentId) },
+    { table: 'teams', query: () => supabase.from('teams').delete().eq('tournament_id', tournamentId).eq('is_temporary', true) },
+    { table: 'round_bye', query: () => supabase.from('round_bye').delete().eq('tournament_id', tournamentId) },
+    { table: 'rounds', query: () => supabase.from('rounds').delete().eq('tournament_id', tournamentId) },
+    { table: 'player_tournament_stats', query: () => supabase.from('player_tournament_stats').delete().eq('tournament_id', tournamentId) },
+  ]
+  for (const step of steps) {
+    const { error } = await step.query()
+    if (error) {
+      console.error(`resetRound1 ${step.table}:`, error.code, error.message)
+      return { error: `Échec de la réinitialisation (${step.table}) : ${error.message}` }
+    }
+  }
+
+  revalidatePath(`/tournaments/${tournamentId}`)
+  return { success: true }
+}
+
 // ─── startRoundsRound ─────────────────────────────────────────────────────────
 
 export async function startRoundsRound(tournamentId: string) {

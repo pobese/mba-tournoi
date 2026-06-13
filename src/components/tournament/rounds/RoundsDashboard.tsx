@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Flag, Loader2, Share2, Clock, PlayCircle, UserPlus } from 'lucide-react'
+import { Flag, Loader2, Share2, Clock, PlayCircle, UserPlus, RotateCcw } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,6 +24,7 @@ import {
   closeRoundsRound,
   startRoundsRound,
   finishRoundsTournament,
+  resetRound1,
 } from '@/app/(app)/tournaments/[id]/rounds-actions'
 import type { RoundsStatsRow } from '@/hooks/useRealtime'
 
@@ -101,9 +102,11 @@ export function RoundsDashboard({
   const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   const [finishDialogOpen, setFinishDialogOpen] = useState(false)
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
+  const [resetOpen, setResetOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [starting, setStarting] = useState(false)
   const [finishing, setFinishing] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   const waves = groupByWave(matches)
   const waveNumbers = Array.from(waves.keys()).sort((a, b) => a - b)
@@ -183,6 +186,27 @@ export function RoundsDashboard({
     }
   }
 
+  async function handleResetRound1() {
+    setResetting(true)
+    try {
+      const result = await resetRound1(tournamentId)
+      if (result?.error) {
+        toast.error('Erreur', { description: result.error, duration: 6000 })
+      } else {
+        toast.success('Round 1 réinitialisé')
+        router.refresh()
+      }
+    } catch (err) {
+      toast.error('Erreur inattendue', { description: err instanceof Error ? err.message : undefined })
+    } finally {
+      setResetting(false)
+      setResetOpen(false)
+    }
+  }
+
+  // Réinitialisation possible tant qu'aucun round 2 n'existe (currentRound = round 1).
+  const canResetRound1 = currentRound?.round_number === 1 && tournamentOngoing
+
   // ─── Colonne gauche ──────────────────────────────────────────────────────────
 
   const matchesSection = (
@@ -245,6 +269,18 @@ export function RoundsDashboard({
             >
               <UserPlus className="w-4 h-4" />
               Ajouter un joueur en cours
+            </Button>
+          )}
+
+          {/* Réinitialiser le round 1 (tant qu'aucun round 2 n'a démarré) */}
+          {canResetRound1 && (
+            <Button
+              variant="ghost"
+              onClick={() => setResetOpen(true)}
+              className="w-full text-muted hover:text-danger border border-subtle hover:border-danger/40 gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Réinitialiser le round 1
             </Button>
           )}
         </div>
@@ -448,6 +484,33 @@ export function RoundsDashboard({
         onOpenChange={setAddPlayerOpen}
         tournamentId={tournamentId}
       />
+
+      {/* Dialog : réinitialiser le round 1 */}
+      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+        <AlertDialogContent className="bg-surface border-subtle">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Réinitialiser le round 1 ?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted">
+              Les matchs, équipes, scores et la liste d&apos;attente du round 1 seront effacés.
+              Tu reviendras à l&apos;écran de constitution des équipes. Le tournoi et les joueurs
+              inscrits sont conservés. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-subtle text-muted hover:text-white hover:bg-surface-alt">
+              Annuler
+            </AlertDialogCancel>
+            <Button
+              onClick={handleResetRound1}
+              disabled={resetting}
+              className="bg-danger text-white font-bold hover:bg-danger/90"
+            >
+              {resetting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Réinitialiser
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialog : terminer le tournoi */}
       <AlertDialog open={finishDialogOpen} onOpenChange={setFinishDialogOpen}>
