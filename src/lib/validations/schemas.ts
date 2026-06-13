@@ -136,6 +136,7 @@ export const StartRound1ManualSchema = z.object({
       z.object({
         player1Id: z.string().uuid(),
         player2Id: z.string().uuid().optional(),
+        name: z.string().max(60).optional(),
       }),
     )
     .min(2),

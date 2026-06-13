@@ -26,7 +26,7 @@ interface Props {
 // ─── Raw shapes ────────────────────────────────────────────────────────────────
 
 interface RawPlayer { id: string; name: string; level: number }
-interface RawTeam { id: string; player1: RawPlayer; player2: RawPlayer | null }
+interface RawTeam { id: string; name?: string | null; player1: RawPlayer; player2: RawPlayer | null }
 
 interface RawMatch {
   id: string; status: string
@@ -100,8 +100,8 @@ async function fetchRoundsData(
       .from('matches')
       .select(`
         id, status, score_team1, score_team2, winner_team_id, wave, court_number, set_scores,
-        team1:teams!matches_team1_id_fkey ( id, player1:players!teams_player1_id_fkey (id,name), player2:players!teams_player2_id_fkey (id,name) ),
-        team2:teams!matches_team2_id_fkey ( id, player1:players!teams_player1_id_fkey (id,name), player2:players!teams_player2_id_fkey (id,name) )
+        team1:teams!matches_team1_id_fkey ( id, name, player1:players!teams_player1_id_fkey (id,name), player2:players!teams_player2_id_fkey (id,name) ),
+        team2:teams!matches_team2_id_fkey ( id, name, player1:players!teams_player1_id_fkey (id,name), player2:players!teams_player2_id_fkey (id,name) )
       `)
       .eq('round_id', roundId)
       .order('wave', { ascending: true })

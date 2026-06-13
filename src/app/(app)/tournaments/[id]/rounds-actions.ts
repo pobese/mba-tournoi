@@ -295,6 +295,7 @@ export async function confirmRound1Draw(
 export interface ManualTeamInput {
   player1Id: string
   player2Id?: string
+  name?: string
 }
 
 /**
@@ -417,12 +418,12 @@ export async function startRound1Manual(
 
         const { data: t1 } = await supabase
           .from('teams')
-          .insert({ tournament_id: tournamentId, player1_id: t1Input.player1Id, player2_id: t1Input.player2Id ?? null, is_temporary: true })
+          .insert({ tournament_id: tournamentId, player1_id: t1Input.player1Id, player2_id: t1Input.player2Id ?? null, name: t1Input.name ?? null, is_temporary: true })
           .select('id').single() as { data: { id: string } | null; error: unknown }
 
         const { data: t2 } = await supabase
           .from('teams')
-          .insert({ tournament_id: tournamentId, player1_id: t2Input.player1Id, player2_id: t2Input.player2Id ?? null, is_temporary: true })
+          .insert({ tournament_id: tournamentId, player1_id: t2Input.player1Id, player2_id: t2Input.player2Id ?? null, name: t2Input.name ?? null, is_temporary: true })
           .select('id').single() as { data: { id: string } | null; error: unknown }
 
         if (!t1 || !t2) {

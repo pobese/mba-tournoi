@@ -20,6 +20,7 @@ import { MAX_BADMINTON_SCORE, ROUNDS_MIN_GAP } from '@/lib/constants'
 
 interface TeamInfo {
   id: string
+  name?: string | null
   player1: { id: string; name: string }
   player2?: { id: string; name: string } | null
 }
@@ -47,6 +48,7 @@ interface RoundsMatchCardProps {
 
 function teamLabel(team: TeamInfo | null): string {
   if (!team) return 'BYE'
+  if (team.name) return team.name
   if (team.player2) return `${team.player1.name} / ${team.player2.name}`
   return team.player1.name
 }

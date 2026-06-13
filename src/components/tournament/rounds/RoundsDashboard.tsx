@@ -29,6 +29,7 @@ import type { RoundsStatsRow } from '@/hooks/useRealtime'
 
 interface TeamInfo {
   id: string
+  name?: string | null
   player1: { id: string; name: string }
   player2?: { id: string; name: string } | null
 }
