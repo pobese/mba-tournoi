@@ -356,6 +356,15 @@ export async function startRound1Manual(
     return { error: `Nombre d'équipes invalide : ${teams.length} (nombre pair ≥ 2 requis)` }
   }
 
+  // Un round tient en une seule vague : au plus `courtsAvailable` matchs
+  // (1 match = 2 équipes). Le surplus doit passer en liste d'attente.
+  const courtsAvailable = rawConfig2.courtsAvailable ?? 9
+  if (teams.length / 2 > courtsAvailable) {
+    return {
+      error: `Trop de matchs (${teams.length / 2}) pour ${courtsAvailable} terrain(s). Mettez des joueurs en attente.`,
+    }
+  }
+
   const allPlayerIds = [
     ...teams.flatMap((t) => [t.player1Id, t.player2Id].filter(Boolean) as string[]),
     ...byePlayerIds,
@@ -406,10 +415,9 @@ export async function startRound1Manual(
       if (byeError) console.error('startRound1Manual byes:', byeError.code, byeError.message)
     }
 
-    // Appariement : équipe i vs équipe i+K/2, découpé en vagues par terrain
+    // Appariement : équipe i vs équipe i+K/2 (garanti ≤ courtsAvailable → 1 vague).
     const half = teams.length / 2
     let wave = 1
-    const courtsAvailable = (rawConfig2.courtsAvailable ?? 9)
     for (let i = 0; i < half; i += courtsAvailable) {
       const waveCount = Math.min(courtsAvailable, half - i)
       for (let j = 0; j < waveCount; j++) {

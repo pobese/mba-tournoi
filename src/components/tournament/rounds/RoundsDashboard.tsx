@@ -65,6 +65,7 @@ interface RoundsDashboardProps {
   targetScore: number
   players: TournamentPlayer[]
   format: 'singles' | 'doubles'
+  courtsAvailable: number
 }
 
 function groupByWave(matches: RoundsMatchInfo[]): Map<number, RoundsMatchInfo[]> {
@@ -94,6 +95,7 @@ export function RoundsDashboard({
   targetScore,
   players,
   format,
+  courtsAvailable,
 }: RoundsDashboardProps) {
   const router = useRouter()
   const [closeDialogOpen, setCloseDialogOpen] = useState(false)
@@ -254,6 +256,7 @@ export function RoundsDashboard({
           tournamentId={tournamentId}
           players={players}
           format={format}
+          courtsAvailable={courtsAvailable}
         />
       )}
 

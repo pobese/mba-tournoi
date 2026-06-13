@@ -25,6 +25,7 @@ interface Round1SetupProps {
   tournamentId: string
   players: TournamentPlayer[]
   format: 'singles' | 'doubles'
+  courtsAvailable: number
 }
 
 type Mode = 'random' | 'manual'
@@ -184,15 +185,21 @@ function ManualDraw({
   tournamentId,
   players,
   format,
+  courtsAvailable,
   onBack,
 }: {
   tournamentId: string
   players: TournamentPlayer[]
   format: 'singles' | 'doubles'
+  courtsAvailable: number
   onBack: () => void
 }) {
   const router = useRouter()
   const isDoubles = format === 'doubles'
+  // 1 match = 2 équipes (paires en double, joueurs en simple). Le nombre de
+  // matchs d'un round ne peut pas dépasser le nombre de terrains : au-delà, le
+  // surplus va en liste d'attente (pas de 2ᵉ vague). → max 2×terrains équipes.
+  const maxTeams = courtsAvailable * 2
 
   // Mêmes primitives que la constitution d'équipes du tournoi classique :
   // association par lien (clic-clic en double) + nom d'équipe optionnel.
@@ -213,6 +220,12 @@ function ManualDraw({
   // Clic sur un joueur disponible : simple → équipe solo ; double → lien clic-clic.
   function clickAvailable(id: string) {
     if (!isDoubles) {
+      if (teams.length >= maxTeams) {
+        toast.error(`Maximum ${courtsAvailable} match(s) sur ${courtsAvailable} terrain(s)`, {
+          description: 'Mettez les joueurs restants en attente.',
+        })
+        return
+      }
       setTeams((ts) => [...ts, { player1Id: id }])
       return
     }
@@ -221,23 +234,37 @@ function ManualDraw({
     } else if (pending === id) {
       setPending(null)
     } else {
+      if (teams.length >= maxTeams) {
+        toast.error(`Maximum ${courtsAvailable} match(s) sur ${courtsAvailable} terrain(s)`, {
+          description: 'Mettez les joueurs restants en attente.',
+        })
+        return
+      }
       setTeams((ts) => [...ts, { player1Id: pending, player2Id: id }])
       setPending(null)
     }
   }
 
-  // Associe automatiquement les joueurs restants (paires en double, solos en simple).
+  // Associe automatiquement les joueurs restants en respectant le plafond de
+  // terrains : on remplit jusqu'à `maxTeams` équipes, le surplus part en attente.
   function autoFill() {
     const pool = available.map((p) => p.id)
+    const slotsLeft = Math.max(0, maxTeams - teams.length)
     if (!isDoubles) {
-      setTeams((ts) => [...ts, ...pool.map((id) => ({ player1Id: id }))])
+      const toAdd = pool.slice(0, slotsLeft)
+      const toBye = pool.slice(slotsLeft)
+      if (toAdd.length > 0) setTeams((ts) => [...ts, ...toAdd.map((id) => ({ player1Id: id }))])
+      if (toBye.length > 0) setByeIds((prev) => new Set([...prev, ...toBye]))
       return
     }
     const newTeams: ManualTeamInput[] = []
-    for (let i = 0; i + 1 < pool.length; i += 2) {
+    let i = 0
+    for (; i + 1 < pool.length && newTeams.length < slotsLeft; i += 2) {
       newTeams.push({ player1Id: pool[i]!, player2Id: pool[i + 1]! })
     }
-    setTeams((ts) => [...ts, ...newTeams])
+    const remaining = pool.slice(i) // surplus (plafond atteint) ou joueur impair → attente
+    if (newTeams.length > 0) setTeams((ts) => [...ts, ...newTeams])
+    if (remaining.length > 0) setByeIds((prev) => new Set([...prev, ...remaining]))
     setPending(null)
   }
 
@@ -267,15 +294,19 @@ function ManualDraw({
 
   const teamsEven = teams.length >= 2 && teams.length % 2 === 0
   const allPlaced = available.length === 0
-  const isValid = teamsEven && allPlaced
+  const overCap = teams.length > maxTeams
+  const isValid = teamsEven && allPlaced && !overCap
+  const matchCount = Math.floor(teams.length / 2)
 
-  const validationError = !allPlaced
-    ? `${available.length} joueur${available.length > 1 ? 's' : ''} non placé${available.length > 1 ? 's' : ''} — ${isDoubles ? 'associez-les' : 'ajoutez-les'} ou mettez-${available.length > 1 ? 'les' : 'le'} en attente`
-    : teams.length < 2
-      ? 'Formez au moins 2 équipes'
-      : !teamsEven
-        ? `${teams.length} équipes (nombre impair) — retirez-en une ou mettez une équipe en attente pour équilibrer les matchs`
-        : null
+  const validationError = overCap
+    ? `Trop d'équipes : ${courtsAvailable} terrain${courtsAvailable > 1 ? 's' : ''} = ${courtsAvailable} match${courtsAvailable > 1 ? 's' : ''} maximum par round. Mettez des joueurs en attente.`
+    : !allPlaced
+      ? `${available.length} joueur${available.length > 1 ? 's' : ''} non placé${available.length > 1 ? 's' : ''} — ${isDoubles ? 'associez-les' : 'ajoutez-les'} ou mettez-${available.length > 1 ? 'les' : 'le'} en attente`
+      : teams.length < 2
+        ? 'Formez au moins 2 équipes'
+        : !teamsEven
+          ? `${teams.length} équipes (nombre impair) — retirez-en une ou mettez une équipe en attente pour équilibrer les matchs`
+          : null
 
   async function handleSubmit() {
     if (!isValid) return
@@ -385,9 +416,14 @@ function ManualDraw({
       {/* Équipes formées */}
       {teams.length > 0 && (
         <div>
-          <p className="text-muted text-xs font-medium uppercase tracking-wide mb-2">
-            Équipes formées ({teams.length})
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-muted text-xs font-medium uppercase tracking-wide">
+              Équipes formées ({teams.length})
+            </p>
+            <span className={`text-xs font-medium tabular-nums ${overCap ? 'text-danger' : 'text-muted'}`}>
+              {matchCount} / {courtsAvailable} match{courtsAvailable > 1 ? 's' : ''}
+            </span>
+          </div>
           <div className="space-y-1.5">
             {teams.map((t, idx) => (
               <div
@@ -467,7 +503,7 @@ function ManualDraw({
 
 // ─── Round1Setup ──────────────────────────────────────────────────────────────
 
-export function Round1Setup({ tournamentId, players, format }: Round1SetupProps) {
+export function Round1Setup({ tournamentId, players, format, courtsAvailable }: Round1SetupProps) {
   const [mode, setMode] = useState<Mode | null>(null)
 
   if (!mode) {
@@ -516,6 +552,7 @@ export function Round1Setup({ tournamentId, players, format }: Round1SetupProps)
           tournamentId={tournamentId}
           players={players}
           format={format}
+          courtsAvailable={courtsAvailable}
           onBack={() => setMode(null)}
         />
       )}

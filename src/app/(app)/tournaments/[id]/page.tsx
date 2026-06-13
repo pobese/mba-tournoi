@@ -421,6 +421,7 @@ export default async function TournamentPage({ params }: Props) {
           targetScore={targetScore}
           players={tournamentPlayers}
           format={roundsFormat}
+          courtsAvailable={config.courtsAvailable ?? 9}
         />
       </div>
     )
