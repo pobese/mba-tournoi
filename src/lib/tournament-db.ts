@@ -138,6 +138,17 @@ export async function createRoundsRound(
       }
     }
   }
+
+  // Les pauses demandées ont été appliquées à ce round → on les consomme
+  // (elles ne valent qu'un round ; le joueur rejouera au suivant sauf nouvelle demande).
+  const { error: clearError } = await supabase
+    .from('player_tournament_stats')
+    .update({ pause_requested: false })
+    .eq('tournament_id', tournamentId)
+    .eq('pause_requested', true)
+  if (clearError) {
+    console.error('createRoundsRound clear pauses:', clearError.code, clearError.message)
+  }
 }
 
 /**
@@ -154,12 +165,13 @@ export async function getRoundsPlayers(
     total_waited: number
     last_waited_round: number | null
     current_rank: number | null
+    pause_requested: boolean | null
     player: { name: string; level: number }
   }
 
   const { data: stats } = await supabase
     .from('player_tournament_stats')
-    .select('player_id, consecutive_played, total_waited, last_waited_round, current_rank, player:players(name, level)')
+    .select('player_id, consecutive_played, total_waited, last_waited_round, current_rank, pause_requested, player:players(name, level)')
     .eq('tournament_id', tournamentId) as { data: StatsRow[] | null; error: unknown }
 
   if (stats && stats.length > 0) {
@@ -171,6 +183,7 @@ export async function getRoundsPlayers(
       totalWaited: s.total_waited,
       lastWaitedRound: s.last_waited_round,
       currentRank: s.current_rank ?? 999,
+      pauseRequested: s.pause_requested ?? false,
     }))
   }
 

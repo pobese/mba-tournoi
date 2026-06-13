@@ -14,6 +14,7 @@ export interface PlayerWithStats {
   totalWaited: number         // total rounds en attente sur le tournoi
   lastWaitedRound: number | null
   currentRank: number         // 1 = meilleur ; calculé par l'appelant avant round 1
+  pauseRequested?: boolean     // pause demandée → forcé en attente ce round
 }
 
 // ─── Types de sortie ──────────────────────────────────────────────────────────
@@ -363,13 +364,20 @@ export function generateRound(
 ): RoundSchedule {
   const warnings: string[] = []
 
+  // Pauses à la demande : ces joueurs sont retirés du vivier AVANT le calcul des
+  // byes de capacité/parité, puis ajoutés à la liste d'attente du round.
+  const forcedByes = players.filter((p) => p.pauseRequested)
+  const forcedIds = new Set(forcedByes.map((p) => p.playerId))
+  const candidates = players.filter((p) => !forcedIds.has(p.playerId))
+
   const neededByes = computeNeededByes(
-    players.length,
+    candidates.length,
     config.format,
     config.courtsAvailable,
   )
 
-  const byes = selectBye(players, neededByes, roundNumber)
+  const extraByes = selectBye(candidates, neededByes, roundNumber)
+  const byes = [...forcedByes, ...extraByes]
   const byeIds = new Set(byes.map((p) => p.playerId))
   const activePlayers = players
     .filter((p) => !byeIds.has(p.playerId))
@@ -384,6 +392,11 @@ export function generateRound(
 
   const teams = formTeams(activePlayers, config.format)
   const waves = formMatches(teams, config.courtsAvailable)
+
+  if (forcedByes.length > 0) {
+    const names = forcedByes.map((p) => p.playerName).join(', ')
+    warnings.push(`${forcedByes.length} joueur(s) en pause à leur demande : ${names}`)
+  }
 
   if (byes.length > 0) {
     const names = byes.map((p) => p.playerName).join(', ')

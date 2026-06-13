@@ -38,6 +38,12 @@ export const AddLatePlayerSchema = z.object({
   playerId: z.string().uuid(),
 })
 
+// Joueurs mis en pause pour le prochain round (rounds).
+export const SetRoundsPausesSchema = z.object({
+  tournamentId: z.string().uuid(),
+  playerIds: z.array(z.string().uuid()).max(500),
+})
+
 // ─── Tournaments ─────────────────────────────────────────────────────────────
 const roundsTargetScoreField = z.union([z.literal(11), z.literal(15), z.literal(21)]).default(21)
 

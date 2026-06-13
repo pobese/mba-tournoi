@@ -14,7 +14,7 @@ import { computeEvolution, computeEncounters } from '@/lib/algorithms/american-a
 import { getTournamentPermissions } from '@/lib/permissions'
 import type { Tournament, RoundsConfig, AmericanConfig, ClassicConfig } from '@/types/app'
 import type { RoundsStatsRow } from '@/hooks/useRealtime'
-import type { RoundsMatchInfo, ByePlayerInfo } from '@/components/tournament/rounds/RoundsDashboard'
+import type { RoundsMatchInfo, ByePlayerInfo, PausedPlayerInfo } from '@/components/tournament/rounds/RoundsDashboard'
 import type { AmericanMatchInfo, AmericanByePlayer } from '@/components/tournament/american/AmericanDashboard'
 
 export const dynamic = 'force-dynamic'
@@ -84,6 +84,7 @@ async function fetchRoundsData(
     current_rank: number | null
     total_waited: number
     consecutive_played: number
+    pause_requested: boolean | null
     player: { name: string }
   }
   type RawByeHist = { player_id: string; round: { round_number: number } | null }
@@ -115,7 +116,7 @@ async function fetchRoundsData(
       .eq('round_id', roundId) as unknown as Promise<{ data: RawBye[] | null; error: QErr }>,
     supabase
       .from('player_tournament_stats')
-      .select('player_id, total_wins, total_points_for, total_points_against, rounds_played, current_rank, total_waited, consecutive_played, player:players(name)')
+      .select('player_id, total_wins, total_points_for, total_points_against, rounds_played, current_rank, total_waited, consecutive_played, pause_requested, player:players(name)')
       .eq('tournament_id', tournamentId)
       .order('current_rank', { ascending: true }) as unknown as Promise<{ data: RawStats[] | null; error: QErr }>,
     supabase
@@ -168,7 +169,11 @@ async function fetchRoundsData(
     byeRounds: byeHistoryMap.get(s.player_id) ?? [],
   }))
 
-  return { matches, byePlayers, playerStats }
+  const pausedPlayers: PausedPlayerInfo[] = (statsRaw ?? [])
+    .filter((s) => s.pause_requested)
+    .map((s) => ({ playerId: s.player_id, playerName: s.player.name }))
+
+  return { matches, byePlayers, playerStats, pausedPlayers }
 }
 
 // ─── American-specific data fetching ──────────────────────────────────────────
@@ -387,9 +392,9 @@ export default async function TournamentPage({ params }: Props) {
     const setsToWin: 1 | 2 = config.matchFormat === '2sets' ? 2 : 1
     const targetScore = config.targetScore ?? 21
     const completedRounds = allRounds.filter((r) => r.status === 'finished').length
-    const { matches, byePlayers, playerStats } = currentRound
+    const { matches, byePlayers, playerStats, pausedPlayers } = currentRound
       ? await fetchRoundsData(supabase, tournament.id, currentRound.id)
-      : { matches: [], byePlayers: [], playerStats: [] }
+      : { matches: [], byePlayers: [], playerStats: [], pausedPlayers: [] as PausedPlayerInfo[] }
 
     return (
       <div className="space-y-6">
@@ -416,6 +421,7 @@ export default async function TournamentPage({ params }: Props) {
           completedRounds={completedRounds}
           matches={matches}
           byePlayers={byePlayers}
+          pausedPlayers={pausedPlayers}
           playerStats={playerStats}
           setsToWin={setsToWin}
           targetScore={targetScore}

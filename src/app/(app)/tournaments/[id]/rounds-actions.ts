@@ -10,6 +10,7 @@ import {
   ConfirmRound1DrawSchema,
   StartRound1ManualSchema,
   AddLatePlayerSchema,
+  SetRoundsPausesSchema,
 } from '@/lib/validations/schemas'
 import {
   createRoundsRound,
@@ -455,6 +456,87 @@ export async function startRound1Manual(
   } catch (err) {
     console.error('startRound1Manual:', err)
     return { error: err instanceof Error ? err.message : 'Erreur lors de la création' }
+  }
+
+  revalidatePath(`/tournaments/${tournamentId}`)
+  return { success: true }
+}
+
+// ─── Pauses du prochain round ─────────────────────────────────────────────────
+
+export interface PauseStateRow { id: string; name: string; paused: boolean }
+
+/**
+ * État des pauses : liste des joueurs du tournoi avec leur drapeau "pause au
+ * prochain round". Disponible une fois les stats initialisées (round 1 lancé).
+ */
+export async function getRoundsPauseState(
+  tournamentId: string,
+): Promise<{ players?: PauseStateRow[]; error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Non authentifié' }
+
+  type Row = { player_id: string; pause_requested: boolean | null; player: { name: string } | null }
+  const { data } = await supabase
+    .from('player_tournament_stats')
+    .select('player_id, pause_requested, player:players(name)')
+    .eq('tournament_id', tournamentId) as { data: Row[] | null; error: unknown }
+
+  const players = (data ?? [])
+    .map((r) => ({ id: r.player_id, name: r.player?.name ?? '—', paused: r.pause_requested ?? false }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+  return { players }
+}
+
+/**
+ * Définit l'ensemble des joueurs en pause pour le prochain round : ceux listés
+ * passent en pause, tous les autres en sont retirés (état complet, pas un toggle).
+ */
+export async function setRoundsPauses(
+  tournamentId: string,
+  playerIds: string[],
+): Promise<{ success?: boolean; error?: string }> {
+  const parsed = SetRoundsPausesSchema.safeParse({ tournamentId, playerIds })
+  if (!parsed.success) return { error: 'Données invalides' }
+
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/login')
+
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('created_by, type, status')
+    .eq('id', tournamentId)
+    .single() as { data: Pick<Tournament, 'created_by' | 'type' | 'status'> | null; error: unknown }
+
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
+  if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
+  if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
+
+  const ids = [...new Set(parsed.data.playerIds)]
+
+  // Remise à zéro globale puis activation des joueurs sélectionnés.
+  const { error: resetError } = await supabase
+    .from('player_tournament_stats')
+    .update({ pause_requested: false })
+    .eq('tournament_id', tournamentId)
+    .eq('pause_requested', true)
+  if (resetError) {
+    console.error('setRoundsPauses reset:', resetError.code, resetError.message)
+    return { error: resetError.message }
+  }
+
+  if (ids.length > 0) {
+    const { error: setError } = await supabase
+      .from('player_tournament_stats')
+      .update({ pause_requested: true })
+      .eq('tournament_id', tournamentId)
+      .in('player_id', ids)
+    if (setError) {
+      console.error('setRoundsPauses set:', setError.code, setError.message)
+      return { error: setError.message }
+    }
   }
 
   revalidatePath(`/tournaments/${tournamentId}`)

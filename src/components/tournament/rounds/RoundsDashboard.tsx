@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Flag, Loader2, Share2, Clock, PlayCircle, UserPlus, RotateCcw } from 'lucide-react'
+import { Flag, Loader2, Share2, Clock, PlayCircle, UserPlus, RotateCcw, PauseCircle } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,6 +20,7 @@ import { RoundsMatchCard } from './RoundsMatchCard'
 import { RoundsStandingsTable } from './RoundsStandingsTable'
 import { Round1Setup, type TournamentPlayer } from './Round1Setup'
 import { AddLatePlayerDialog } from './AddLatePlayerDialog'
+import { PauseDialog } from './PauseDialog'
 import {
   closeRoundsRound,
   startRoundsRound,
@@ -53,6 +54,11 @@ export interface ByePlayerInfo {
   consecutivePlayed: number
 }
 
+export interface PausedPlayerInfo {
+  playerId: string
+  playerName: string
+}
+
 interface RoundsDashboardProps {
   tournamentId: string
   tournamentSlug: string
@@ -61,6 +67,7 @@ interface RoundsDashboardProps {
   completedRounds: number
   matches: RoundsMatchInfo[]
   byePlayers: ByePlayerInfo[]
+  pausedPlayers: PausedPlayerInfo[]
   playerStats: RoundsStatsRow[]
   setsToWin: 1 | 2
   targetScore: number
@@ -91,6 +98,7 @@ export function RoundsDashboard({
   completedRounds,
   matches,
   byePlayers,
+  pausedPlayers,
   playerStats,
   setsToWin,
   targetScore,
@@ -102,6 +110,7 @@ export function RoundsDashboard({
   const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   const [finishDialogOpen, setFinishDialogOpen] = useState(false)
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
+  const [pauseOpen, setPauseOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [starting, setStarting] = useState(false)
@@ -207,6 +216,9 @@ export function RoundsDashboard({
   // Réinitialisation possible tant qu'aucun round 2 n'existe (currentRound = round 1).
   const canResetRound1 = currentRound?.round_number === 1 && tournamentOngoing
 
+  // Numéro du prochain round à générer (pour libellé des pauses).
+  const nextRoundNumber = (currentRound?.round_number ?? 0) + 1
+
   // ─── Colonne gauche ──────────────────────────────────────────────────────────
 
   const matchesSection = (
@@ -269,6 +281,23 @@ export function RoundsDashboard({
             >
               <UserPlus className="w-4 h-4" />
               Ajouter un joueur en cours
+            </Button>
+          )}
+
+          {/* Pauses du prochain round (à la demande des joueurs) */}
+          {tournamentOngoing && (
+            <Button
+              variant="ghost"
+              onClick={() => setPauseOpen(true)}
+              className="w-full text-muted hover:text-accent border border-subtle hover:border-accent/40 gap-2"
+            >
+              <PauseCircle className="w-4 h-4" />
+              Pauses du round {nextRoundNumber}
+              {pausedPlayers.length > 0 && (
+                <span className="text-xs bg-accent/15 text-accent border border-accent/30 px-2 py-0.5 rounded-full font-medium">
+                  {pausedPlayers.length}
+                </span>
+              )}
             </Button>
           )}
 
@@ -392,6 +421,26 @@ export function RoundsDashboard({
           ))}
         </div>
       )}
+
+      {/* Joueurs en pause au prochain round (à leur demande) */}
+      {pausedPlayers.length > 0 && (
+        <div className="bg-surface border border-accent/20 rounded-xl p-4 space-y-2">
+          <h3 className="text-accent text-xs font-medium uppercase tracking-wide flex items-center gap-1.5">
+            <PauseCircle className="w-3.5 h-3.5" />
+            En pause au round {nextRoundNumber}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {pausedPlayers.map((p) => (
+              <span
+                key={p.playerId}
+                className="text-xs bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded-full"
+              >
+                {p.playerName}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 
@@ -483,6 +532,14 @@ export function RoundsDashboard({
         open={addPlayerOpen}
         onOpenChange={setAddPlayerOpen}
         tournamentId={tournamentId}
+      />
+
+      {/* Dialog : pauses du prochain round */}
+      <PauseDialog
+        open={pauseOpen}
+        onOpenChange={setPauseOpen}
+        tournamentId={tournamentId}
+        nextRoundNumber={nextRoundNumber}
       />
 
       {/* Dialog : réinitialiser le round 1 */}
