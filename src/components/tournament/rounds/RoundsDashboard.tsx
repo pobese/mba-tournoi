@@ -219,6 +219,11 @@ export function RoundsDashboard({
   // Numéro du prochain round à générer (pour libellé des pauses).
   const nextRoundNumber = (currentRound?.round_number ?? 0) + 1
 
+  // Grille des matchs : autant de colonnes que la largeur le permet (≈ 1 carte
+  // par terrain). 9 matchs sur grand écran → ~3×3 ; 1 colonne sur mobile.
+  const matchGridClass =
+    'grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]'
+
   // ─── Colonne gauche ──────────────────────────────────────────────────────────
 
   const matchesSection = (
@@ -355,7 +360,7 @@ export function RoundsDashboard({
             const waveMatches = waves.get(wn) ?? []
             const prevDone = wn === 1 || isWaveDone(waves.get(wn - 1) ?? [])
             return (
-              <TabsContent key={wn} value={String(wn)} className="space-y-2">
+              <TabsContent key={wn} value={String(wn)} className={matchGridClass}>
                 {waveMatches.map((match) => (
                   <RoundsMatchCard
                     key={match.id}
@@ -378,7 +383,7 @@ export function RoundsDashboard({
           })}
         </Tabs>
       ) : (
-        <div className="space-y-2">
+        <div className={matchGridClass}>
           {matches.map((match) => (
             <RoundsMatchCard
               key={match.id}
