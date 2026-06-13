@@ -14,38 +14,56 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { deletePlayer } from '@/app/(app)/players/actions'
+import { deletePlayers } from '@/app/(app)/players/actions'
 
-interface DeletePlayerDialogProps {
+interface BulkDeletePlayersDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  playerId: string
-  playerName: string
+  playerIds: string[]
+  playerNames: Record<string, string>
+  onDone: () => void
 }
 
-export function DeletePlayerDialog({
+export function BulkDeletePlayersDialog({
   open,
   onOpenChange,
-  playerId,
-  playerName,
-}: DeletePlayerDialogProps) {
+  playerIds,
+  playerNames,
+  onDone,
+}: BulkDeletePlayersDialogProps) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const count = playerIds.length
 
   async function handleDelete() {
     setLoading(true)
     try {
-      const result = await deletePlayer(playerId)
+      const result = await deletePlayers(playerIds)
       if (result?.error) {
         toast.error('Suppression impossible', { description: result.error, duration: 6000 })
         return
       }
-      const archived = result?.archived ?? []
-      toast.success('Joueur supprimé', {
-        description: archived.length > 0
-          ? `Tournoi(s) archivé(s) : ${archived.join(', ')}`
-          : undefined,
-      })
+
+      const deleted = result.deleted ?? 0
+      const blocked = result.blocked ?? []
+      const archived = result.archived ?? []
+
+      if (deleted > 0) {
+        toast.success(`${deleted} joueur${deleted > 1 ? 's' : ''} supprimé${deleted > 1 ? 's' : ''}`, {
+          description: archived.length > 0 ? `Tournoi(s) archivé(s) : ${archived.join(', ')}` : undefined,
+        })
+      }
+      if (blocked.length > 0) {
+        const lines = blocked
+          .map((b) => `• ${playerNames[b.playerId] ?? 'Joueur'} — ${b.reason}`)
+          .join('\n')
+        toast.error(`${blocked.length} non supprimé${blocked.length > 1 ? 's' : ''}`, {
+          description: lines,
+          duration: 9000,
+        })
+      }
+
+      onDone()
       onOpenChange(false)
       router.refresh()
     } catch (err) {
@@ -61,11 +79,13 @@ export function DeletePlayerDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-surface border-subtle">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">Supprimer {playerName} ?</AlertDialogTitle>
+          <AlertDialogTitle className="text-white">
+            Supprimer {count} joueur{count > 1 ? 's' : ''} ?
+          </AlertDialogTitle>
           <AlertDialogDescription className="text-muted">
-            Cette action est irréversible. Le joueur sera définitivement supprimé.
-            S&apos;il a participé à des tournois terminés, ceux-ci seront archivés
-            (résultats figés en lecture seule) afin de préserver l&apos;historique.
+            Action irréversible. Les joueurs participant à un tournoi en cours seront
+            ignorés. Ceux présents dans des tournois terminés entraîneront l&apos;archivage
+            de ces tournois (résultats figés en lecture seule).
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -78,7 +98,7 @@ export function DeletePlayerDialog({
             className="bg-danger text-white hover:bg-danger/90 border-0"
           >
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Supprimer
+            Supprimer la sélection
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

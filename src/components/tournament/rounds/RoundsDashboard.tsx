@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Flag, Loader2, Share2, Clock, PlayCircle } from 'lucide-react'
+import { Flag, Loader2, Share2, Clock, PlayCircle, UserPlus } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,6 +19,7 @@ import { RoundProgress } from '@/components/tournament/RoundProgress'
 import { RoundsMatchCard } from './RoundsMatchCard'
 import { RoundsStandingsTable } from './RoundsStandingsTable'
 import { Round1Setup, type TournamentPlayer } from './Round1Setup'
+import { AddLatePlayerDialog } from './AddLatePlayerDialog'
 import {
   closeRoundsRound,
   startRoundsRound,
@@ -96,6 +97,7 @@ export function RoundsDashboard({
   const router = useRouter()
   const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   const [finishDialogOpen, setFinishDialogOpen] = useState(false)
+  const [addPlayerOpen, setAddPlayerOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [starting, setStarting] = useState(false)
   const [finishing, setFinishing] = useState(false)
@@ -229,6 +231,18 @@ export function RoundsDashboard({
           {/* Tournoi terminé */}
           {tournamentFinished && (
             <p className="text-center text-sm text-muted">Tournoi terminé — {completedRounds} rounds joués</p>
+          )}
+
+          {/* Entrée d'un joueur en retard (en cours de tournoi) */}
+          {tournamentOngoing && (
+            <Button
+              variant="ghost"
+              onClick={() => setAddPlayerOpen(true)}
+              className="w-full text-muted hover:text-white border border-subtle gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Ajouter un joueur en cours
+            </Button>
           )}
         </div>
       )}
@@ -423,6 +437,13 @@ export function RoundsDashboard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog : ajouter un joueur en retard */}
+      <AddLatePlayerDialog
+        open={addPlayerOpen}
+        onOpenChange={setAddPlayerOpen}
+        tournamentId={tournamentId}
+      />
 
       {/* Dialog : terminer le tournoi */}
       <AlertDialog open={finishDialogOpen} onOpenChange={setFinishDialogOpen}>

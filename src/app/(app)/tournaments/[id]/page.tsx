@@ -5,6 +5,8 @@ import { RoundsDashboard } from '@/components/tournament/rounds/RoundsDashboard'
 import { AmericanDashboard } from '@/components/tournament/american/AmericanDashboard'
 import { ClassicPoolsDashboard, type PoolView, type TeamLite } from '@/components/tournament/classic/ClassicPoolsDashboard'
 import { ClassicBracketDashboard } from '@/components/tournament/classic/ClassicBracketDashboard'
+import { StaticResultsView } from '@/components/tournament/StaticResultsView'
+import type { ResultsSnapshot } from '@/lib/tournament-archive'
 import type { BracketMatchView } from '@/components/tournament/classic/bracket-types'
 import { TournamentHeaderActions } from '@/components/tournament/TournamentHeaderActions'
 import { TOURNAMENT_TYPE_LABELS, TOURNAMENT_STATUS_LABELS, AMERICAN_MIN_GAP } from '@/lib/constants'
@@ -350,6 +352,32 @@ export default async function TournamentPage({ params }: Props) {
 
   const typeLabel = TOURNAMENT_TYPE_LABELS[tournament.type] ?? tournament.type
   const statusLabel = TOURNAMENT_STATUS_LABELS[tournament.status] ?? tournament.status
+
+  // ─── Tournoi archivé : rendu statique depuis le snapshot ────────────────────
+  // results_snapshot n'est pas dans le type généré (database.ts) → lecture via cast.
+  const snapshot = (tournament as unknown as { results_snapshot?: ResultsSnapshot | null }).results_snapshot
+  if (snapshot) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title={tournament.name}
+          description={`${typeLabel} — Archivé`}
+          action={
+            <TournamentHeaderActions
+              tournamentId={tournament.id}
+              tournamentName={tournament.name}
+              tournamentStatus={tournament.status}
+              tournamentType={tournament.type}
+              config={tournament.config as unknown as RoundsConfig}
+              playerCount={playerCount ?? 0}
+              canDelete={permissions.canDelete}
+            />
+          }
+        />
+        <StaticResultsView snapshot={snapshot} />
+      </div>
+    )
+  }
 
   // ─── Rounds mode : données spécifiques ──────────────────────────────────────
 

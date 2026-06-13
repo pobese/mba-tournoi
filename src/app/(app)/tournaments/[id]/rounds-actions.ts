@@ -9,6 +9,7 @@ import {
   ResetMatchScoreSchema,
   ConfirmRound1DrawSchema,
   StartRound1ManualSchema,
+  AddLatePlayerSchema,
 } from '@/lib/validations/schemas'
 import {
   createRoundsRound,
@@ -702,6 +703,146 @@ export async function finishRoundsTournament(tournamentId: string) {
     .from('tournaments')
     .update({ status: 'finished', finished_at: new Date().toISOString() })
     .eq('id', tournamentId)
+
+  revalidatePath(`/tournaments/${tournamentId}`)
+  return { success: true }
+}
+
+// ─── getAddablePlayers ────────────────────────────────────────────────────────
+
+export interface AddablePlayer { id: string; name: string; level: number }
+
+/**
+ * Liste les joueurs du roster de l'organisateur qui ne sont pas encore inscrits
+ * au tournoi — candidats à une entrée en cours de route.
+ */
+export async function getAddablePlayers(
+  tournamentId: string,
+): Promise<{ players?: AddablePlayer[]; error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Non authentifié' }
+
+  const [{ data: existing }, { data: roster }] = await Promise.all([
+    supabase
+      .from('tournament_players')
+      .select('player_id')
+      .eq('tournament_id', tournamentId) as unknown as Promise<{ data: { player_id: string }[] | null; error: unknown }>,
+    supabase
+      .from('players')
+      .select('id, name, level')
+      .eq('created_by', user.id)
+      .order('name', { ascending: true }) as unknown as Promise<{ data: AddablePlayer[] | null; error: unknown }>,
+  ])
+
+  const taken = new Set((existing ?? []).map((e) => e.player_id))
+  return { players: (roster ?? []).filter((p) => !taken.has(p.id)) }
+}
+
+// ─── addLatePlayerToRounds ────────────────────────────────────────────────────
+
+/**
+ * Inscrit un joueur arrivé en retard dans un tournoi par rounds déjà en cours.
+ * Il sera intégré dès le prochain round généré. Ses stats démarrent à zéro avec
+ * `consecutive_played = 0`, ce qui le rend prioritaire pour jouer (et non pour
+ * attendre) au round suivant.
+ */
+export async function addLatePlayerToRounds(
+  tournamentId: string,
+  playerId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const parsed = AddLatePlayerSchema.safeParse({ tournamentId, playerId })
+  if (!parsed.success) return { error: 'Données invalides' }
+
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/login')
+
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('created_by, type, status')
+    .eq('id', tournamentId)
+    .single() as { data: Pick<Tournament, 'created_by' | 'type' | 'status'> | null; error: unknown }
+
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
+  if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
+  if (tournament.status !== 'ongoing') return { error: "Le tournoi n'est pas en cours" }
+
+  // Le joueur doit appartenir au roster de l'organisateur.
+  const { data: player } = await supabase
+    .from('players')
+    .select('id')
+    .eq('id', playerId)
+    .eq('created_by', user.id)
+    .maybeSingle() as { data: { id: string } | null; error: unknown }
+  if (!player) return { error: 'Joueur introuvable' }
+
+  // Déjà inscrit ?
+  const { data: already } = await supabase
+    .from('tournament_players')
+    .select('id')
+    .eq('tournament_id', tournamentId)
+    .eq('player_id', playerId)
+    .maybeSingle() as { data: { id: string } | null; error: unknown }
+  if (already) return { error: 'Ce joueur est déjà inscrit au tournoi' }
+
+  // Seed = dernier + 1 (placé en fin de liste initiale).
+  const { data: seedRows } = await supabase
+    .from('tournament_players')
+    .select('seed')
+    .eq('tournament_id', tournamentId)
+    .order('seed', { ascending: false })
+    .limit(1) as { data: { seed: number | null }[] | null; error: unknown }
+  const maxSeed = seedRows?.[0]?.seed ?? 0
+
+  const { error: insertError } = await supabase
+    .from('tournament_players')
+    .insert({ tournament_id: tournamentId, player_id: playerId, seed: maxSeed + 1, is_active: true })
+  if (insertError) {
+    console.error('addLatePlayerToRounds insert:', insertError.code, insertError.message)
+    return { error: insertError.message }
+  }
+
+  // Si le round 1 est déjà lancé, player_tournament_stats est initialisé : il faut
+  // y ajouter le joueur, sinon getRoundsPlayers (qui lit cette table) l'ignorerait.
+  const { count } = await supabase
+    .from('player_tournament_stats')
+    .select('id', { count: 'exact', head: true })
+    .eq('tournament_id', tournamentId)
+
+  if ((count ?? 0) > 0) {
+    const [{ data: rankRows }, { count: finishedRounds }] = await Promise.all([
+      supabase
+        .from('player_tournament_stats')
+        .select('current_rank')
+        .eq('tournament_id', tournamentId)
+        .order('current_rank', { ascending: false })
+        .limit(1) as unknown as Promise<{ data: { current_rank: number | null }[] | null; error: unknown }>,
+      supabase
+        .from('rounds')
+        .select('id', { count: 'exact', head: true })
+        .eq('tournament_id', tournamentId)
+        .eq('status', 'finished'),
+    ])
+    const maxRank = rankRows?.[0]?.current_rank ?? (count ?? 0)
+
+    const { error: statsError } = await supabase.from('player_tournament_stats').insert({
+      tournament_id: tournamentId,
+      player_id: playerId,
+      total_wins: 0,
+      total_points_for: 0,
+      total_points_against: 0,
+      rounds_played: 0,
+      consecutive_played: 0,
+      total_waited: finishedRounds ?? 0,
+      last_waited_round: null,
+      current_rank: maxRank + 1,
+    })
+    if (statsError) {
+      console.error('addLatePlayerToRounds stats:', statsError.code, statsError.message)
+      return { error: statsError.message }
+    }
+  }
 
   revalidatePath(`/tournaments/${tournamentId}`)
   return { success: true }

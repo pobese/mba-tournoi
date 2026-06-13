@@ -943,6 +943,9 @@ export async function submitBracketMatchScore(
   // Le terrain libéré est attribué aux matchs devenus prêts (barrages > principal).
   await dispatchBracketCourts(supabase, match.tournament_id, res.tournament.config?.courtsAvailable ?? 0)
 
+  // Finales jouées → tournoi marqué terminé automatiquement.
+  await syncClassicTournamentStatus(supabase, match.tournament_id)
+
   revalidatePath(`/tournaments/${match.tournament_id}`)
   return { success: true }
 }
@@ -1042,8 +1045,57 @@ export async function resetBracketMatchScore(matchId: string) {
   // Réattribution des terrains (le match annulé redevient prêt).
   await dispatchBracketCourts(supabase, match.tournament_id, res.tournament.config?.courtsAvailable ?? 0)
 
+  // Annuler une finale peut ré-ouvrir le tournoi.
+  await syncClassicTournamentStatus(supabase, match.tournament_id)
+
   revalidatePath(`/tournaments/${match.tournament_id}`)
   return { success: true }
+}
+
+/**
+ * Synchronise le statut du tournoi classique avec l'avancement du tableau.
+ * Terminé ⇔ la finale du tableau principal est jouée ET (s'il existe) la finale
+ * de la consolante l'est aussi. Réversible : annuler une finale repasse le
+ * tournoi en cours. Calque la détection du champion faite côté UI
+ * (ClassicBracketDashboard : `bracket_position === 1`).
+ */
+async function syncClassicTournamentStatus(
+  supabase: SupabaseClient,
+  tournamentId: string,
+): Promise<void> {
+  type Row = { phase: string; bracket_position: number | null; status: string }
+  const { data: rows } = await supabase
+    .from('matches')
+    .select('phase, bracket_position, status')
+    .eq('tournament_id', tournamentId)
+    .in('phase', ['bracket_main', 'bracket_consolante']) as { data: Row[] | null; error: unknown }
+
+  const matches = rows ?? []
+  const mainFinale = matches.find((m) => m.phase === 'bracket_main' && m.bracket_position === 1)
+  // Pas de tableau principal généré → rien à synchroniser.
+  if (!mainFinale) return
+  const consoFinale = matches.find((m) => m.phase === 'bracket_consolante' && m.bracket_position === 1)
+
+  const finished = mainFinale.status === 'done' && (!consoFinale || consoFinale.status === 'done')
+
+  const { data: t } = await supabase
+    .from('tournaments')
+    .select('status')
+    .eq('id', tournamentId)
+    .single() as { data: { status: string } | null; error: unknown }
+  if (!t) return
+
+  if (finished && t.status !== 'finished') {
+    await supabase
+      .from('tournaments')
+      .update({ status: 'finished', finished_at: new Date().toISOString() })
+      .eq('id', tournamentId)
+  } else if (!finished && t.status === 'finished') {
+    await supabase
+      .from('tournaments')
+      .update({ status: 'ongoing', finished_at: null })
+      .eq('id', tournamentId)
+  }
 }
 
 // Place une équipe dans le premier emplacement libre du match cible.

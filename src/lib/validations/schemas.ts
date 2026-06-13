@@ -28,6 +28,16 @@ export const BulkImportPlayersSchema = z.object({
 })
 export type BulkImportPlayersInput = z.infer<typeof BulkImportPlayersSchema>
 
+export const DeletePlayersSchema = z.object({
+  playerIds: z.array(z.string().uuid()).min(1).max(200),
+})
+
+// Ajout d'un joueur en retard dans un tournoi par rounds (en cours).
+export const AddLatePlayerSchema = z.object({
+  tournamentId: z.string().uuid(),
+  playerId: z.string().uuid(),
+})
+
 // ─── Tournaments ─────────────────────────────────────────────────────────────
 const roundsTargetScoreField = z.union([z.literal(11), z.literal(15), z.literal(21)]).default(21)
 
