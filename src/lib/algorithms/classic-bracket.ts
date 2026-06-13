@@ -266,17 +266,41 @@ export interface PoolMatchToCreate {
 
 /**
  * Round-robin complet : chaque équipe affronte toutes les autres une fois.
- * n×(n-1)/2 matchs, sans ordre imposé.
+ * n×(n-1)/2 matchs.
+ *
+ * Ordre = méthode du cercle (Berger) : on planifie n-1 tours où, à chaque tour,
+ * chaque équipe joue AU PLUS une fois. Émettre les matchs tour par tour donne un
+ * ordre de création équilibré : aucune équipe n'enchaîne tous ses matchs en tête
+ * de file (le cas d'une boucle imbriquée 1-2,1-3,1-4… qui faisait jouer le
+ * joueur 1 d'affilée pendant que les autres attendaient). Vaut pour simple comme
+ * double — c'est le même générateur.
+ *
+ * Les matchs sortent dans cet ordre ; l'appelant le persiste dans
+ * `matches.position` pour que le dispatch des terrains le respecte.
  */
 export function generatePoolMatches(
   poolId: string,
   teams: Array<{ id: string }>,
 ): PoolMatchToCreate[] {
+  if (teams.length < 2) return []
+
+  // Slots tournants : on ajoute une équipe « fantôme » (null) si effectif impair
+  // → l'équipe en face d'elle est exemptée ce tour-là.
+  const slots: (string | null)[] = teams.map((t) => t.id)
+  if (slots.length % 2 === 1) slots.push(null)
+  const size = slots.length
+  const half = size / 2
+
   const matches: PoolMatchToCreate[] = []
-  for (let i = 0; i < teams.length; i++) {
-    for (let j = i + 1; j < teams.length; j++) {
-      matches.push({ poolId, team1Id: teams[i]!.id, team2Id: teams[j]!.id })
+  for (let round = 0; round < size - 1; round++) {
+    for (let i = 0; i < half; i++) {
+      const a = slots[i]
+      const b = slots[size - 1 - i]
+      if (a != null && b != null) matches.push({ poolId, team1Id: a, team2Id: b })
     }
+    // Rotation : la 1re position reste fixe, les autres tournent d'un cran.
+    const last = slots.pop()!
+    slots.splice(1, 0, last)
   }
   return matches
 }
@@ -592,34 +616,77 @@ export interface BracketDispatchMatch {
   bracketPosition: number // 0 = barrage/qualification, ≥1 = position dans l'arbre
 }
 
+export interface BracketRemaining {
+  main: number // matchs principal+barrages non terminés (prêts ou non)
+  consolante: number // matchs consolante+repêchages non terminés
+}
+
 /**
- * Attribue les terrains libres aux matchs prêts du tableau, par priorité :
- * barrages/qualifications d'abord (pour libérer le tableau principal), puis le
- * tableau principal (tours les plus précoces en premier), puis la consolante.
- * Les matchs principaux dont les deux équipes sont déjà connues peuvent ainsi
- * démarrer en parallèle des barrages s'il reste des terrains.
+ * Attribue les terrains libres aux matchs prêts du tableau en ÉQUILIBRANT le
+ * tableau principal et la consolante : les deux progressent en parallèle et
+ * finissent ~en même temps, au lieu de vider tout le principal avant d'attaquer
+ * la consolante (gros tournois où #matchs prêts > #terrains).
+ *
+ * - Barrages et repêchages (`bracketPosition === 0`) restent prioritaires DANS
+ *   leur groupe : ils débloquent les tours suivants.
+ * - Au sein d'un tableau, les tours les plus précoces (roundSize le plus grand)
+ *   passent d'abord.
+ * - Les terrains libres sont répartis entre les deux tableaux au prorata du
+ *   travail restant (`remaining`), avec report du surplus vers l'autre tableau
+ *   s'il a moins de matchs prêts que sa part. À défaut de `remaining`, le prorata
+ *   se base sur le nombre de matchs prêts de chaque côté.
  *
  * Fonction pure — testée dans classic-bracket.test.ts.
  */
 export function planBracketCourtDispatch(
   freeCourts: number[],
   ready: BracketDispatchMatch[],
+  remaining?: BracketRemaining,
 ): Array<{ matchId: string; courtNumber: number }> {
-  const phaseRank = (m: BracketDispatchMatch): number =>
-    m.bracketPosition === 0 ? 0 : m.phase === 'bracket_main' ? 1 : 2
+  const isConso = (m: BracketDispatchMatch): boolean => m.phase === 'bracket_consolante'
   const roundSize = (m: BracketDispatchMatch): number =>
     m.bracketPosition >= 1 ? 2 ** Math.floor(Math.log2(m.bracketPosition)) : 0
 
-  const ordered = [...ready].sort(
-    (a, b) =>
-      phaseRank(a) - phaseRank(b) ||
-      roundSize(b) - roundSize(a) || // tour le plus précoce (plus grand) en premier
-      a.bracketPosition - b.bracketPosition,
-  )
+  // Ordre interne d'un tableau : barrage/repêchage (pos 0) d'abord, puis tour le
+  // plus précoce (plus grand roundSize), puis position dans l'arbre.
+  const byPriority = (a: BracketDispatchMatch, b: BracketDispatchMatch): number =>
+    (a.bracketPosition === 0 ? 0 : 1) - (b.bracketPosition === 0 ? 0 : 1) ||
+    roundSize(b) - roundSize(a) ||
+    a.bracketPosition - b.bracketPosition
+
+  const mainReady = ready.filter((m) => !isConso(m)).sort(byPriority)
+  const consoReady = ready.filter(isConso).sort(byPriority)
 
   const courts = [...freeCourts].sort((a, b) => a - b)
-  const n = Math.min(courts.length, ordered.length)
-  return Array.from({ length: n }, (_, i) => ({ matchId: ordered[i]!.id, courtNumber: courts[i]! }))
+  const total = Math.min(courts.length, mainReady.length + consoReady.length)
+  if (total === 0) return []
+
+  // Part du principal : prorata du travail restant, borné par les matchs prêts,
+  // avec report du surplus de terrains vers l'autre tableau.
+  let mainPick: number
+  if (consoReady.length === 0) {
+    mainPick = Math.min(total, mainReady.length)
+  } else if (mainReady.length === 0) {
+    mainPick = 0
+  } else {
+    const mainRem = remaining ? remaining.main : mainReady.length
+    const consoRem = remaining ? remaining.consolante : consoReady.length
+    const denom = mainRem + consoRem
+    if (total === 1) {
+      // Un seul terrain : au tableau le plus chargé (principal à égalité).
+      mainPick = mainRem >= consoRem ? 1 : 0
+    } else {
+      const quota = denom > 0 ? Math.round((total * mainRem) / denom) : Math.round(total / 2)
+      // Au moins 1 terrain à chaque tableau qui a des matchs prêts.
+      mainPick = Math.min(Math.max(quota, 1), total - 1, mainReady.length)
+    }
+  }
+  let consoPick = Math.min(total - mainPick, consoReady.length)
+  // Report : si un tableau n'épuise pas sa part, l'autre récupère les terrains.
+  mainPick = Math.min(total - consoPick, mainReady.length)
+
+  const chosen = [...mainReady.slice(0, mainPick), ...consoReady.slice(0, consoPick)]
+  return chosen.map((m, i) => ({ matchId: m.id, courtNumber: courts[i]! }))
 }
 
 // ─── Détection de la taille de tableau ────────────────────────────────────────

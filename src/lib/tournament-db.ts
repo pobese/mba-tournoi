@@ -451,7 +451,7 @@ export async function generateClassicPools(
   const standingRows: Array<Record<string, unknown>> = []
   for (const poolId of poolIds) {
     const members = membersByPool.get(poolId)!
-    for (const m of generatePoolMatches(poolId, members.map((id) => ({ id })))) {
+    generatePoolMatches(poolId, members.map((id) => ({ id }))).forEach((m, i) => {
       matchRows.push({
         tournament_id: tournamentId,
         pool_id: poolId,
@@ -459,8 +459,9 @@ export async function generateClassicPools(
         team1_id: m.team1Id,
         team2_id: m.team2Id,
         status: 'pending',
+        position: i + 1, // ordre round-robin équilibré → respecté par le dispatch
       })
-    }
+    })
     for (const teamId of members) {
       standingRows.push({ tournament_id: tournamentId, pool_id: poolId, team_id: teamId })
     }
@@ -537,10 +538,14 @@ export async function dispatchPoolCourts(
       .from('pool_courts')
       .select('court_number')
       .eq('pool_id', poolId) as unknown as Promise<{ data: CourtRow[] | null; error: unknown }>,
+    // Tri par `position` (ordre round-robin équilibré, cf. generatePoolMatches) :
+    // déterministe, contrairement à created_at qui est identique sur un insert
+    // bulk. created_at départage les anciens tournois sans position.
     supabase
       .from('matches')
       .select('id, status, team1_id, team2_id, court_number')
       .eq('pool_id', poolId)
+      .order('position', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: true }) as unknown as Promise<{ data: MatchRow[] | null; error: unknown }>,
   ])
 
@@ -636,7 +641,21 @@ export async function dispatchBracketCourts(
     .filter((m) => m.status === 'pending' && m.court_number === null && m.team1_id !== null && m.team2_id !== null)
     .map((m) => ({ id: m.id, phase: m.phase, bracketPosition: m.bracket_position ?? 0 }))
 
-  const assignments = planBracketCourtDispatch(freeCourts, ready)
+  // Travail restant par tableau (matchs non terminés, prêts ou non) → permet de
+  // répartir les terrains au prorata pour que principal et consolante finissent
+  // ensemble. Les barrages comptent côté principal, les repêchages côté consolante.
+  let mainRemaining = 0
+  let consoRemaining = 0
+  for (const m of matches) {
+    if (m.status === 'done') continue
+    if (m.phase === 'bracket_consolante') consoRemaining++
+    else mainRemaining++
+  }
+
+  const assignments = planBracketCourtDispatch(freeCourts, ready, {
+    main: mainRemaining,
+    consolante: consoRemaining,
+  })
   if (assignments.length === 0) return
 
   const results = (await Promise.all(

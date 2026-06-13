@@ -14,6 +14,7 @@ import {
   type PoolMatchInput,
   type PoolStanding,
   type CourtDispatchMatch,
+  type BracketDispatchMatch,
 } from './classic-bracket'
 
 describe('classic bracket', () => {
@@ -139,6 +140,34 @@ describe('generatePoolMatches', () => {
     const pairs = matches.map((m) => [m.team1Id, m.team2Id].sort().join('-'))
     expect(new Set(pairs).size).toBe(6) // aucun doublon
     expect(matches.every((m) => m.poolId === 'pool1')).toBe(true)
+  })
+
+  // Équité de l'ordre (méthode du cercle) : chaque tour de floor(n/2) matchs ne
+  // fait jouer chaque équipe qu'une fois → personne n'enchaîne tous ses matchs.
+  it.each([4, 5, 6, 7, 8])('répartit équitablement le rythme (poule de %i)', (n) => {
+    const teams = Array.from({ length: n }, (_, i) => ({ id: `t${i}` }))
+    const matches = generatePoolMatches('pool1', teams)
+    expect(matches).toHaveLength((n * (n - 1)) / 2)
+    expect(new Set(matches.map((m) => [m.team1Id, m.team2Id].sort().join('-'))).size).toBe(
+      (n * (n - 1)) / 2,
+    ) // toutes les confrontations, une seule fois
+
+    const perRound = Math.floor(n / 2)
+    for (let start = 0; start + perRound <= matches.length; start += perRound) {
+      const round = matches.slice(start, start + perRound)
+      const ids = round.flatMap((m) => [m.team1Id, m.team2Id])
+      expect(new Set(ids).size).toBe(ids.length) // aucune équipe deux fois dans le tour
+    }
+
+    // Toutes les équipes entrent en jeu dès le premier tour (aucune mise à l'écart).
+    const firstAppearance = new Map<string, number>()
+    matches.forEach((m, i) => {
+      for (const id of [m.team1Id, m.team2Id]) {
+        if (!firstAppearance.has(id)) firstAppearance.set(id, i)
+      }
+    })
+    expect(firstAppearance.size).toBe(n)
+    expect(Math.max(...firstAppearance.values())).toBeLessThan(perRound * 2)
   })
 })
 
@@ -459,7 +488,7 @@ describe('planBracketCourtDispatch (terrains du tableau)', () => {
     expect(result.map((r) => r.matchId)).toContain('m')
   })
 
-  it('tableau principal avant consolante, tours précoces en premier', () => {
+  it('au sein d\'un tableau, tours précoces en premier', () => {
     const result = planBracketCourtDispatch(
       [1, 2, 3],
       [
@@ -468,6 +497,7 @@ describe('planBracketCourtDispatch (terrains du tableau)', () => {
         { id: 'demi', phase: 'bracket_main', bracketPosition: 2 },  // roundSize 2
       ],
     )
+    // 2 main prêts + 1 conso prêt sur 3 terrains → tout passe, principal d'abord trié.
     expect(result.map((r) => r.matchId)).toEqual(['quart', 'demi', 'conso'])
   })
 
@@ -481,5 +511,51 @@ describe('planBracketCourtDispatch (terrains du tableau)', () => {
     )
     expect(result).toHaveLength(1)
     expect(result[0]!.matchId).toBe('a')
+  })
+
+  it('équilibre principal et consolante au prorata du travail restant', () => {
+    // 4 terrains, beaucoup de matchs prêts des deux côtés. Restant : 15 principal,
+    // 7 consolante → ~3 terrains principal / 1 consolante (pas 4/0).
+    const ready: BracketDispatchMatch[] = [
+      { id: 'm1', phase: 'bracket_main', bracketPosition: 8 },
+      { id: 'm2', phase: 'bracket_main', bracketPosition: 9 },
+      { id: 'm3', phase: 'bracket_main', bracketPosition: 10 },
+      { id: 'm4', phase: 'bracket_main', bracketPosition: 11 },
+      { id: 'c1', phase: 'bracket_consolante', bracketPosition: 4 },
+      { id: 'c2', phase: 'bracket_consolante', bracketPosition: 5 },
+      { id: 'c3', phase: 'bracket_consolante', bracketPosition: 6 },
+    ]
+    const result = planBracketCourtDispatch([1, 2, 3, 4], ready, { main: 15, consolante: 7 })
+    const ids = result.map((r) => r.matchId)
+    expect(result).toHaveLength(4)
+    expect(ids.filter((id) => id.startsWith('m'))).toHaveLength(3)
+    expect(ids.filter((id) => id.startsWith('c'))).toHaveLength(1)
+  })
+
+  it('garantit au moins un terrain à la consolante quand les deux sont prêts', () => {
+    const ready: BracketDispatchMatch[] = [
+      { id: 'm1', phase: 'bracket_main', bracketPosition: 8 },
+      { id: 'm2', phase: 'bracket_main', bracketPosition: 9 },
+      { id: 'm3', phase: 'bracket_main', bracketPosition: 10 },
+      { id: 'c1', phase: 'bracket_consolante', bracketPosition: 4 },
+    ]
+    // Restant écrasant côté principal mais la consolante a un match prêt → 1 terrain.
+    const result = planBracketCourtDispatch([1, 2], ready, { main: 100, consolante: 3 })
+    const ids = result.map((r) => r.matchId)
+    expect(ids).toContain('c1')
+    expect(ids.filter((id) => id.startsWith('m'))).toHaveLength(1)
+  })
+
+  it('reporte les terrains vers le principal si la consolante a peu de matchs prêts', () => {
+    const ready: BracketDispatchMatch[] = [
+      { id: 'm1', phase: 'bracket_main', bracketPosition: 8 },
+      { id: 'm2', phase: 'bracket_main', bracketPosition: 9 },
+      { id: 'm3', phase: 'bracket_main', bracketPosition: 10 },
+      { id: 'c1', phase: 'bracket_consolante', bracketPosition: 4 },
+    ]
+    // 4 terrains mais 1 seul conso prêt → 3 principal + 1 conso (aucun gaspillé).
+    const result = planBracketCourtDispatch([1, 2, 3, 4], ready, { main: 15, consolante: 7 })
+    expect(result).toHaveLength(4)
+    expect(result.map((r) => r.matchId).filter((id) => id.startsWith('m'))).toHaveLength(3)
   })
 })

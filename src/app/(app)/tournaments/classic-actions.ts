@@ -193,9 +193,10 @@ async function regeneratePoolMatches(
 
   if (teamIds.length === 0) return
 
-  const matchRows = generatePoolMatches(poolId, teamIds.map((id) => ({ id }))).map((m) => ({
+  const matchRows = generatePoolMatches(poolId, teamIds.map((id) => ({ id }))).map((m, i) => ({
     tournament_id: tournamentId, pool_id: poolId, phase: 'pool',
     team1_id: m.team1Id, team2_id: m.team2Id, status: 'pending',
+    position: i + 1, // ordre round-robin équilibré → respecté par le dispatch
   }))
   if (matchRows.length > 0) await supabase.from('matches').insert(matchRows)
 
