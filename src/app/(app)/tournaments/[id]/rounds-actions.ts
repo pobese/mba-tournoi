@@ -11,6 +11,8 @@ import {
   StartRound1ManualSchema,
   AddLatePlayerSchema,
   SetRoundsPausesSchema,
+  SetPlayerPresenceSchema,
+  SetAllPresenceSchema,
 } from '@/lib/validations/schemas'
 import {
   createRoundsRound,
@@ -100,7 +102,8 @@ export async function previewRound1Draw(tournamentId: string): Promise<{
   const { data: tPlayers } = await supabase
     .from('tournament_players')
     .select('player_id, player:players(name, level)')
-    .eq('tournament_id', tournamentId) as { data: TPlayerRow[] | null; error: unknown }
+    .eq('tournament_id', tournamentId)
+    .eq('is_active', true) as { data: TPlayerRow[] | null; error: unknown }
 
   if (!tPlayers || tPlayers.length === 0) return { error: 'Aucun joueur trouvé' }
 
@@ -196,6 +199,7 @@ export async function confirmRound1Draw(
         .from('tournament_players')
         .select('player_id, seed, player:players(name, level)')
         .eq('tournament_id', tournamentId)
+        .eq('is_active', true)
         .order('seed', { ascending: true }) as { data: TPlayerRow[] | null; error: unknown }
 
       if (tPlayers && tPlayers.length > 0) {
@@ -387,6 +391,7 @@ export async function startRound1Manual(
         .from('tournament_players')
         .select('player_id, seed')
         .eq('tournament_id', tournamentId)
+        .eq('is_active', true)
         .order('seed', { ascending: true }) as { data: TPlayerRow[] | null; error: unknown }
 
       if (tPlayers && tPlayers.length > 0) {
@@ -456,6 +461,117 @@ export async function startRound1Manual(
   } catch (err) {
     console.error('startRound1Manual:', err)
     return { error: err instanceof Error ? err.message : 'Erreur lors de la création' }
+  }
+
+  revalidatePath(`/tournaments/${tournamentId}`)
+  return { success: true }
+}
+
+// ─── Présence (appel avant le round 1) ────────────────────────────────────────
+
+export interface PresenceRow { id: string; name: string; level: number; present: boolean }
+
+// Vrai si aucun round n'a encore été créé (présence modifiable uniquement avant).
+async function noRoundYet(supabase: SupabaseClient, tournamentId: string): Promise<boolean> {
+  const { count } = await supabase
+    .from('rounds')
+    .select('id', { count: 'exact', head: true })
+    .eq('tournament_id', tournamentId)
+  return (count ?? 0) === 0
+}
+
+/**
+ * Liste des joueurs inscrits avec leur présence (is_active). Sert au tableau de
+ * présence affiché avant le lancement du round 1.
+ */
+export async function getPresenceState(
+  tournamentId: string,
+): Promise<{ players?: PresenceRow[]; error?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Non authentifié' }
+
+  type Row = { player_id: string; is_active: boolean | null; player: { name: string; level: number } | null }
+  const { data } = await supabase
+    .from('tournament_players')
+    .select('player_id, is_active, player:players(name, level)')
+    .eq('tournament_id', tournamentId) as { data: Row[] | null; error: unknown }
+
+  const players = (data ?? [])
+    .filter((r): r is Row & { player: NonNullable<Row['player']> } => r.player !== null)
+    .map((r) => ({ id: r.player_id, name: r.player.name, level: r.player.level, present: r.is_active ?? true }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+  return { players }
+}
+
+export async function setPlayerPresence(
+  tournamentId: string,
+  playerId: string,
+  present: boolean,
+): Promise<{ success?: boolean; error?: string }> {
+  const parsed = SetPlayerPresenceSchema.safeParse({ tournamentId, playerId, present })
+  if (!parsed.success) return { error: 'Données invalides' }
+
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/login')
+
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('created_by, type')
+    .eq('id', tournamentId)
+    .single() as { data: Pick<Tournament, 'created_by' | 'type'> | null; error: unknown }
+
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
+  if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
+  if (!(await noRoundYet(supabase, tournamentId))) {
+    return { error: 'Le round 1 est déjà lancé — la présence ne peut plus être modifiée ici.' }
+  }
+
+  const { error } = await supabase
+    .from('tournament_players')
+    .update({ is_active: present })
+    .eq('tournament_id', tournamentId)
+    .eq('player_id', playerId)
+  if (error) {
+    console.error('setPlayerPresence:', error.code, error.message)
+    return { error: error.message }
+  }
+
+  revalidatePath(`/tournaments/${tournamentId}`)
+  return { success: true }
+}
+
+export async function setAllPlayersPresence(
+  tournamentId: string,
+  present: boolean,
+): Promise<{ success?: boolean; error?: string }> {
+  const parsed = SetAllPresenceSchema.safeParse({ tournamentId, present })
+  if (!parsed.success) return { error: 'Données invalides' }
+
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/login')
+
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('created_by, type')
+    .eq('id', tournamentId)
+    .single() as { data: Pick<Tournament, 'created_by' | 'type'> | null; error: unknown }
+
+  if (!tournament || !(await canManageTournament(supabase, tournament.created_by, user.id))) return { error: 'Permission refusée' }
+  if (tournament.type !== 'rounds') return { error: "Ce tournoi n'est pas en mode rounds" }
+  if (!(await noRoundYet(supabase, tournamentId))) {
+    return { error: 'Le round 1 est déjà lancé — la présence ne peut plus être modifiée ici.' }
+  }
+
+  const { error } = await supabase
+    .from('tournament_players')
+    .update({ is_active: present })
+    .eq('tournament_id', tournamentId)
+  if (error) {
+    console.error('setAllPlayersPresence:', error.code, error.message)
+    return { error: error.message }
   }
 
   revalidatePath(`/tournaments/${tournamentId}`)
@@ -858,8 +974,9 @@ export async function finishRoundsTournament(tournamentId: string) {
 export interface AddablePlayer { id: string; name: string; level: number }
 
 /**
- * Liste les joueurs du roster de l'organisateur qui ne sont pas encore inscrits
- * au tournoi — candidats à une entrée en cours de route.
+ * Liste les joueurs du roster de l'organisateur qui ne participent pas encore
+ * (pas de ligne dans player_tournament_stats) — candidats à une entrée en cours
+ * de route. Inclut donc les joueurs marqués absents avant le round 1.
  */
 export async function getAddablePlayers(
   tournamentId: string,
@@ -868,9 +985,9 @@ export async function getAddablePlayers(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Non authentifié' }
 
-  const [{ data: existing }, { data: roster }] = await Promise.all([
+  const [{ data: playing }, { data: roster }] = await Promise.all([
     supabase
-      .from('tournament_players')
+      .from('player_tournament_stats')
       .select('player_id')
       .eq('tournament_id', tournamentId) as unknown as Promise<{ data: { player_id: string }[] | null; error: unknown }>,
     supabase
@@ -880,8 +997,8 @@ export async function getAddablePlayers(
       .order('name', { ascending: true }) as unknown as Promise<{ data: AddablePlayer[] | null; error: unknown }>,
   ])
 
-  const taken = new Set((existing ?? []).map((e) => e.player_id))
-  return { players: (roster ?? []).filter((p) => !taken.has(p.id)) }
+  const inPlay = new Set((playing ?? []).map((e) => e.player_id))
+  return { players: (roster ?? []).filter((p) => !inPlay.has(p.id)) }
 }
 
 // ─── addLatePlayerToRounds ────────────────────────────────────────────────────
@@ -922,30 +1039,49 @@ export async function addLatePlayerToRounds(
     .maybeSingle() as { data: { id: string } | null; error: unknown }
   if (!player) return { error: 'Joueur introuvable' }
 
-  // Déjà inscrit ?
-  const { data: already } = await supabase
+  // Participe déjà (a des stats) ?
+  const { data: alreadyPlaying } = await supabase
+    .from('player_tournament_stats')
+    .select('player_id')
+    .eq('tournament_id', tournamentId)
+    .eq('player_id', playerId)
+    .maybeSingle() as { data: { player_id: string } | null; error: unknown }
+  if (alreadyPlaying) return { error: 'Ce joueur participe déjà au tournoi' }
+
+  // Inscription : réactiver s'il était inscrit mais absent, sinon créer la ligne.
+  const { data: existingTp } = await supabase
     .from('tournament_players')
     .select('id')
     .eq('tournament_id', tournamentId)
     .eq('player_id', playerId)
     .maybeSingle() as { data: { id: string } | null; error: unknown }
-  if (already) return { error: 'Ce joueur est déjà inscrit au tournoi' }
 
-  // Seed = dernier + 1 (placé en fin de liste initiale).
-  const { data: seedRows } = await supabase
-    .from('tournament_players')
-    .select('seed')
-    .eq('tournament_id', tournamentId)
-    .order('seed', { ascending: false })
-    .limit(1) as { data: { seed: number | null }[] | null; error: unknown }
-  const maxSeed = seedRows?.[0]?.seed ?? 0
+  if (existingTp) {
+    const { error } = await supabase
+      .from('tournament_players')
+      .update({ is_active: true })
+      .eq('id', existingTp.id)
+    if (error) {
+      console.error('addLatePlayerToRounds reactivate:', error.code, error.message)
+      return { error: error.message }
+    }
+  } else {
+    // Seed = dernier + 1 (placé en fin de liste initiale).
+    const { data: seedRows } = await supabase
+      .from('tournament_players')
+      .select('seed')
+      .eq('tournament_id', tournamentId)
+      .order('seed', { ascending: false })
+      .limit(1) as { data: { seed: number | null }[] | null; error: unknown }
+    const maxSeed = seedRows?.[0]?.seed ?? 0
 
-  const { error: insertError } = await supabase
-    .from('tournament_players')
-    .insert({ tournament_id: tournamentId, player_id: playerId, seed: maxSeed + 1, is_active: true })
-  if (insertError) {
-    console.error('addLatePlayerToRounds insert:', insertError.code, insertError.message)
-    return { error: insertError.message }
+    const { error: insertError } = await supabase
+      .from('tournament_players')
+      .insert({ tournament_id: tournamentId, player_id: playerId, seed: maxSeed + 1, is_active: true })
+    if (insertError) {
+      console.error('addLatePlayerToRounds insert:', insertError.code, insertError.message)
+      return { error: insertError.message }
+    }
   }
 
   // Si le round 1 est déjà lancé, player_tournament_stats est initialisé : il faut

@@ -44,6 +44,18 @@ export const SetRoundsPausesSchema = z.object({
   playerIds: z.array(z.string().uuid()).max(500),
 })
 
+// Présence d'un joueur avant le lancement du round 1 (rounds).
+export const SetPlayerPresenceSchema = z.object({
+  tournamentId: z.string().uuid(),
+  playerId: z.string().uuid(),
+  present: z.boolean(),
+})
+
+export const SetAllPresenceSchema = z.object({
+  tournamentId: z.string().uuid(),
+  present: z.boolean(),
+})
+
 // ─── Tournaments ─────────────────────────────────────────────────────────────
 const roundsTargetScoreField = z.union([z.literal(11), z.literal(15), z.literal(21)]).default(21)
 

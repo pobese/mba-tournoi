@@ -1,14 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Shuffle, Hand, Loader2, PlayCircle, X, UserMinus, RotateCcw, Link2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PresenceCheck } from './PresenceCheck'
 import {
   previewRound1Draw,
   confirmRound1Draw,
   startRound1Manual,
+  getPresenceState,
+  setPlayerPresence,
+  setAllPlayersPresence,
   type DrawPreview,
   type ManualTeamInput,
 } from '@/app/(app)/tournaments/[id]/rounds-actions'
@@ -505,16 +509,71 @@ function ManualDraw({
 
 export function Round1Setup({ tournamentId, players, format, courtsAvailable }: Round1SetupProps) {
   const [mode, setMode] = useState<Mode | null>(null)
+  // Présence : initialisée "tous présents" (is_active défaut true), affinée par le
+  // serveur. Persistée à chaque changement → les actions de round 1 la respectent.
+  const [presentIds, setPresentIds] = useState<Set<string>>(new Set(players.map((p) => p.id)))
+  const [presenceBusy, setPresenceBusy] = useState(false)
+
+  useEffect(() => {
+    getPresenceState(tournamentId).then((res) => {
+      if (res.players) setPresentIds(new Set(res.players.filter((p) => p.present).map((p) => p.id)))
+    })
+  }, [tournamentId])
+
+  const presentPlayers = players.filter((p) => presentIds.has(p.id))
+
+  function togglePresence(id: string) {
+    const present = !presentIds.has(id)
+    setPresentIds((prev) => {
+      const next = new Set(prev)
+      if (present) next.add(id)
+      else next.delete(id)
+      return next
+    })
+    setPresenceBusy(true)
+    setPlayerPresence(tournamentId, id, present)
+      .then((r) => {
+        if (r?.error) {
+          toast.error('Erreur', { description: r.error })
+          setPresentIds((prev) => {
+            const next = new Set(prev)
+            if (present) next.delete(id)
+            else next.add(id)
+            return next
+          })
+        }
+      })
+      .finally(() => setPresenceBusy(false))
+  }
+
+  function setAllPresence(present: boolean) {
+    setPresentIds(present ? new Set(players.map((p) => p.id)) : new Set())
+    setPresenceBusy(true)
+    setAllPlayersPresence(tournamentId, present)
+      .then((r) => {
+        if (r?.error) toast.error('Erreur', { description: r.error })
+      })
+      .finally(() => setPresenceBusy(false))
+  }
 
   if (!mode) {
     return (
-      <div className="bg-surface border border-subtle rounded-xl p-6 space-y-4">
+      <div className="space-y-4">
+        <PresenceCheck
+          players={players}
+          presentIds={presentIds}
+          busy={presenceBusy}
+          onToggle={togglePresence}
+          onSetAll={setAllPresence}
+        />
+        <div className="bg-surface border border-subtle rounded-xl p-6 space-y-4">
         <div>
           <h3 className="font-display font-bold text-white text-base">
             Comment former les équipes du Round 1 ?
           </h3>
           <p className="text-muted text-xs mt-1">
-            {players.length} joueur{players.length !== 1 ? 's' : ''} inscrit{players.length !== 1 ? 's' : ''}
+            {presentPlayers.length} joueur{presentPlayers.length !== 1 ? 's' : ''} présent{presentPlayers.length !== 1 ? 's' : ''}
+            {presentPlayers.length !== players.length && ` · ${players.length - presentPlayers.length} absent${players.length - presentPlayers.length > 1 ? 's' : ''}`}
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -539,6 +598,7 @@ export function Round1Setup({ tournamentId, players, format, courtsAvailable }: 
             <p className="text-muted text-xs">Je choisis moi-même les équipes</p>
           </button>
         </div>
+        </div>
       </div>
     )
   }
@@ -550,7 +610,7 @@ export function Round1Setup({ tournamentId, players, format, courtsAvailable }: 
       ) : (
         <ManualDraw
           tournamentId={tournamentId}
-          players={players}
+          players={presentPlayers}
           format={format}
           courtsAvailable={courtsAvailable}
           onBack={() => setMode(null)}

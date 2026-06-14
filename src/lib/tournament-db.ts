@@ -198,6 +198,7 @@ export async function getRoundsPlayers(
     .from('tournament_players')
     .select('player_id, seed, player:players(name, level)')
     .eq('tournament_id', tournamentId)
+    .eq('is_active', true)
     .order('seed', { ascending: true }) as { data: TPlayerRow[] | null; error: unknown }
 
   if (!tPlayers || tPlayers.length === 0) return []
