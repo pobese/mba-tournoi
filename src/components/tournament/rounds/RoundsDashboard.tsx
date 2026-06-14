@@ -219,10 +219,9 @@ export function RoundsDashboard({
   // Numéro du prochain round à générer (pour libellé des pauses).
   const nextRoundNumber = (currentRound?.round_number ?? 0) + 1
 
-  // Grille des matchs : autant de colonnes que la largeur le permet (≈ 1 carte
-  // par terrain). 9 matchs sur grand écran → ~3×3 ; 1 colonne sur mobile.
-  const matchGridClass =
-    'grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]'
+  // Grille des matchs : 1 colonne (mobile) → 2 (tablette) → 3 (desktop).
+  // 9 matchs sur desktop → 3×3. Les cartes gèrent les noms longs (retour ligne).
+  const matchGridClass = 'grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
 
   // ─── Colonne gauche ──────────────────────────────────────────────────────────
 

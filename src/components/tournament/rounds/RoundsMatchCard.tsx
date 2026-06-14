@@ -224,46 +224,66 @@ export function RoundsMatchCard({
     })
   }
 
-  const inputCls = (side: 1 | 2, winnerInSet: 0 | 1 | 2, done: boolean) =>
-    `w-14 h-12 sm:h-10 text-center text-lg sm:text-base font-display font-bold rounded-lg border
+  const inputCls = (winnerInSet: 0 | 1 | 2, side: 1 | 2, done: boolean) =>
+    `${setsToWin === 2 ? 'w-11' : 'w-14'} h-12 lg:h-10 text-center text-lg font-display font-bold rounded-lg border
      bg-surface-alt text-white tabular-nums focus:outline-none focus:ring-2 focus:ring-primary
      focus:border-primary transition disabled:opacity-70 disabled:cursor-not-allowed ${done ? 'score-final' : ''}
      ${winnerInSet === side && done ? 'border-primary/50' : 'border-subtle'}`
 
-  // Fonction de rendu (PAS un composant <SetRow/>) : appelée inline pour que les
-  // inputs restent des enfants directs du parent et ne soient pas démontés à
-  // chaque frappe — sinon le focus est perdu après chaque caractère.
-  function renderSetRow(idx: number, setInput: SetInput, disabled: boolean) {
-    const w = isDone ? 0 : setWinner(setInput)
+  // Sets visibles : 1 en match simple, jusqu'à 3 en best-of-3.
+  const visibleSets = [0]
+  if (showSet2) visibleSets.push(1)
+  if (showSet3) visibleSets.push(2)
+
+  // Ligne d'une équipe : nom à gauche (retour à la ligne, jamais tronqué de
+  // force), score(s) à droite. Rendu inline (PAS un sous-composant) pour que les
+  // inputs restent des enfants directs et ne perdent pas le focus à chaque frappe.
+  function renderTeamRow(side: 1 | 2) {
+    const team = side === 1 ? team1 : team2
+    const field = side === 1 ? 't1' : 't2'
+    const isWinner = isDone && winnerSide === side
+    const label = teamLabel(team)
+    // Noms longs : police réduite (text-xs) pour tenir sur 2 lignes sans ellipse.
+    const nameSize = label.length > 18 ? 'text-xs' : 'text-sm'
     return (
       <div className="flex items-center gap-2">
-        {setsToWin === 2 && (
-          <span className="text-muted text-xs w-10 shrink-0">Set {idx + 1}</span>
-        )}
-        <div className={`flex-1 min-w-0 text-sm font-medium truncate ${isDone && winnerSide === 1 && idx === 0 ? 'text-primary winner-name' : 'text-white'}`}>
-          {idx === 0 ? teamLabel(team1) : ''}
+        <div
+          className={`flex-1 min-w-0 ${nameSize} font-medium leading-tight break-words line-clamp-2 ${
+            isWinner ? 'text-primary winner-name' : isDone ? 'text-muted' : 'text-white'
+          }`}
+        >
+          {label}
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <input
-            type="number" min={0} max={MAX_BADMINTON_SCORE}
-            value={setInput.t1}
-            onChange={(e) => updateSet(idx, 't1', e.target.value)}
-            disabled={isDone || loading || waveBlocked || disabled}
-            aria-label={`Set ${idx + 1} score ${teamLabel(team1)}`}
-            className={inputCls(1, w, isDone)}
-          />
-          <span aria-hidden className="h-7 w-px border-l border-dashed border-primary/40" title="filet" />
-          <input
-            type="number" min={0} max={MAX_BADMINTON_SCORE}
-            value={setInput.t2}
-            onChange={(e) => updateSet(idx, 't2', e.target.value)}
-            disabled={isDone || loading || waveBlocked || disabled}
-            aria-label={`Set ${idx + 1} score ${teamLabel(team2)}`}
-            className={inputCls(2, w, isDone)}
-          />
-        </div>
-        <div className={`flex-1 min-w-0 text-sm font-medium truncate text-right ${isDone && winnerSide === 2 && idx === 0 ? 'text-primary winner-name' : 'text-white'}`}>
-          {idx === 0 ? teamLabel(team2) : ''}
+        <div className="flex items-center gap-1 shrink-0">
+          {visibleSets.map((idx) => {
+            const setInput = sets[idx] ?? emptySet()
+            if (isDone) {
+              const val = setInput[field]
+              return (
+                <span
+                  key={idx}
+                  className={`${setsToWin === 2 ? 'w-11' : 'w-14'} text-center text-xl font-display font-extrabold tabular-nums score-final ${
+                    isWinner ? 'text-primary' : 'text-muted'
+                  }`}
+                >
+                  {val === '' ? '–' : val}
+                </span>
+              )
+            }
+            return (
+              <input
+                key={idx}
+                type="number"
+                min={0}
+                max={MAX_BADMINTON_SCORE}
+                value={setInput[field]}
+                onChange={(e) => updateSet(idx, field, e.target.value)}
+                disabled={loading || waveBlocked}
+                aria-label={`${teamLabel(team)} — set ${idx + 1}`}
+                className={inputCls(setWinner(setInput), side, isDone)}
+              />
+            )
+          })}
         </div>
       </div>
     )
@@ -277,45 +297,42 @@ export function RoundsMatchCard({
       : { label: 'À jouer', cls: 'bg-accent/15 text-accent border-accent/30' }
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br from-surface to-surface-alt/40 px-4 py-3.5 transition-all ${
+    <div className={`relative flex flex-col overflow-hidden rounded-2xl border bg-gradient-to-br from-surface to-surface-alt/40 p-3 min-h-[160px] transition-all ${
       isDone
         ? 'border-primary/25'
         : waveBlocked
           ? 'border-subtle opacity-60'
           : 'border-subtle hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5'
     }`}>
-      {/* Liseré supérieur facon ligne de terrain */}
+      {/* Liseré supérieur façon ligne de terrain */}
       <span aria-hidden className={`absolute inset-x-0 top-0 h-0.5 ${isDone ? 'bg-primary/40' : waveBlocked ? 'bg-subtle' : 'bg-gradient-to-r from-primary/50 via-accent/40 to-primary/50'}`} />
 
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          {courtNumber !== null ? (
-            // Mini-terrain : rectangle vert avec filet central + numéro
-            <span className="court-badge relative grid place-items-center w-9 h-9 rounded-lg bg-primary-dim/30 border border-primary/30">
-              <span aria-hidden className="absolute inset-y-1.5 left-1/2 -translate-x-1/2 w-px bg-primary/40" />
-              <span className="relative font-display font-extrabold text-primary text-sm tabular-nums">{courtNumber}</span>
-            </span>
-          ) : (
-            <span className="w-9 h-9 rounded-lg bg-surface-alt border border-subtle" />
-          )}
-          <div className="leading-tight">
-            <p className="text-[10px] uppercase tracking-wider text-muted font-medium">Terrain</p>
-            <p className="font-display font-bold text-white text-sm">
-              {courtNumber !== null ? `N°${courtNumber}` : 'Match'}
-            </p>
-          </div>
-        </div>
-        <span className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full border ${statusPill.cls}`}>
+      {/* Header compact : badge terrain (chiffre) + pastille de statut */}
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <span
+          className={`grid place-items-center w-7 h-7 rounded-md font-display font-extrabold text-sm tabular-nums ${
+            courtNumber !== null
+              ? 'bg-primary/15 border border-primary/30 text-primary'
+              : 'bg-surface-alt border border-subtle text-muted'
+          }`}
+          aria-label={courtNumber !== null ? `Terrain ${courtNumber}` : 'Match'}
+        >
+          {courtNumber ?? '–'}
+        </span>
+        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${statusPill.cls}`}>
           {statusPill.label}
         </span>
       </div>
 
-      <div className="space-y-2">
-        {renderSetRow(0, s1, false)}
-
-        {showSet2 && renderSetRow(1, s2, false)}
-
-        {showSet3 && renderSetRow(2, s3, false)}
+      {/* Équipes : nom à gauche, score(s) à droite, séparées par "VS" */}
+      <div className="flex-1 flex flex-col justify-center gap-1.5">
+        {renderTeamRow(1)}
+        <div className="flex items-center gap-2" aria-hidden>
+          <div className="flex-1 border-t border-subtle/50" />
+          <span className="text-[10px] font-bold text-muted">VS</span>
+          <div className="flex-1 border-t border-subtle/50" />
+        </div>
+        {renderTeamRow(2)}
       </div>
 
       {/* Score en sets (best-of-3 uniquement) */}
@@ -328,24 +345,24 @@ export function RoundsMatchCard({
       )}
 
       {!isDone && !waveBlocked && gapWarning && (
-        <p className="mt-2 text-xs text-accent">⚠️ {gapWarning}</p>
+        <p className="mt-2 text-xs text-accent leading-tight">⚠️ {gapWarning}</p>
       )}
 
+      {/* Action : valider (pleine largeur) */}
       {!isDone && !waveBlocked && (
-        <div className="mt-3 flex justify-end">
-          <Button
-            size="sm" onClick={handleSave}
-            disabled={!isValid || loading}
-            className="bg-primary/20 text-primary border border-primary/30 hover:bg-primary hover:text-app transition-colors h-8 px-3 text-xs font-bold"
-          >
-            {loading
-              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              : <><Check className="w-3.5 h-3.5 mr-1" />Valider</>
-            }
-          </Button>
-        </div>
+        <Button
+          onClick={handleSave}
+          disabled={!isValid || loading}
+          className="mt-2.5 w-full bg-primary/20 text-primary border border-primary/30 hover:bg-primary hover:text-app transition-colors h-9 text-xs font-bold gap-1.5"
+        >
+          {loading
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <><Check className="w-3.5 h-3.5" />Valider</>
+          }
+        </Button>
       )}
 
+      {/* Match terminé : annulation discrète */}
       {isDone && !waveBlocked && (
         <div className="mt-2 flex justify-end">
           <AlertDialog>
@@ -354,12 +371,12 @@ export function RoundsMatchCard({
                 size="sm"
                 variant="ghost"
                 disabled={resetting}
-                className="text-muted hover:text-danger hover:bg-danger/10 h-8 px-3 text-xs"
+                className="text-muted hover:text-danger hover:bg-danger/10 h-7 px-2 text-xs gap-1"
               >
                 {resetting ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <RotateCcw className="w-3.5 h-3.5" />
+                  <><RotateCcw className="w-3 h-3" />Modifier</>
                 )}
               </Button>
             </AlertDialogTrigger>
