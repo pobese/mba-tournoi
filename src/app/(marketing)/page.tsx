@@ -18,7 +18,7 @@ export default function MarketingLanding() {
     <main className="rc-landing min-h-screen bg-app font-dmsans text-text">
       <MarketingNav active={view} onChange={setView} />
 
-      {view === 'home' && <HomeView onChange={setView} />}
+      {view === 'home' && <HomeView />}
       {view === 'player' && <PlayerView />}
       {view === 'club' && <ClubView />}
       {view === 'organizer' && <OrganizerView />}

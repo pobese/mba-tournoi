@@ -3,13 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import {
-  TOURNAMENTS,
-  FORMAT_LABELS,
-  type MarketingView,
-  type TournamentFormat,
-  type PublicTournament,
-} from './data'
+import { TOURNAMENTS, FORMAT_LABELS, type TournamentFormat, type PublicTournament } from './data'
 
 type Filter = 'all' | TournamentFormat
 
@@ -64,11 +58,7 @@ const HERO_CARDS = [
   },
 ] as const
 
-interface HomeViewProps {
-  onChange: (view: MarketingView) => void
-}
-
-export function HomeView({ onChange }: HomeViewProps) {
+export function HomeView() {
   const [filter, setFilter] = useState<Filter>('all')
   const list = filter === 'all' ? TOURNAMENTS : TOURNAMENTS.filter((t) => t.format === filter)
 
@@ -102,8 +92,8 @@ export function HomeView({ onChange }: HomeViewProps) {
               className="rc-fade mt-6 max-w-md text-base leading-relaxed text-muted sm:text-lg"
               style={{ animationDelay: '0.2s' }}
             >
-              La première plateforme badminton pour les tournois publics et les clubs privés.
-              Trouve un tournoi, crée ton club, retrouve tes résultats.
+              La première plateforme de sport de raquette pour les tournois publics et les
+              clubs privés. Crée un tournoi, trouve ton club et retrouve tes résultats.
             </p>
 
             <div className="rc-fade mt-9 flex flex-wrap gap-3" style={{ animationDelay: '0.3s' }}>
@@ -113,13 +103,12 @@ export function HomeView({ onChange }: HomeViewProps) {
               >
                 Je rejoins un tournoi 🏸
               </Link>
-              <button
-                type="button"
-                onClick={() => onChange('club')}
+              <Link
+                href="/register"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-subtle px-7 py-3.5 font-medium text-text transition-colors hover:border-primary hover:text-primary"
               >
-                Je gère mon club <ArrowRight className="h-4 w-4" />
-              </button>
+                Je suis gérant de club <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
 
