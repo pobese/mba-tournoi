@@ -49,10 +49,10 @@ export async function middleware(request: NextRequest) {
     return redirectRes
   }
 
-  // Redirect logged-in users away from auth pages
+  // Redirect logged-in users away from auth pages → landing (vue connectée)
   if (user && (pathname === '/login' || pathname === '/register')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = '/'
     const redirectRes = NextResponse.redirect(url)
     supabaseResponse.cookies.getAll().forEach((c) => redirectRes.cookies.set(c.name, c.value))
     return redirectRes

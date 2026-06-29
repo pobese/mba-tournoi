@@ -40,7 +40,7 @@ export default function LoginPage() {
         return
       }
 
-      router.push('/dashboard')
+      router.push('/')
       router.refresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inattendue'

@@ -44,8 +44,8 @@ export default function RegisterPage() {
         return
       }
 
-      toast.success('Compte créé !', { description: 'Bienvenue sur MBA Tournoi.' })
-      router.push('/dashboard')
+      toast.success('Compte créé !', { description: 'Bienvenue sur RacketClub.' })
+      router.push('/')
       router.refresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inattendue'
