@@ -21,8 +21,8 @@
     --bg-surface: 26 29 46; /* #1a1d2e */
     --bg-surface-alt: 37 40 64; /* #252840 */
     --border-subtle: 46 49 80; /* #2e3150 */
-    --color-primary: 74 222 128; /* #4ade80 */
-    --color-primary-dim: 22 101 52; /* #166534 */
+    --color-primary: 200 241 53; /* #C8F135 */
+    --color-primary-dim: 61 74 10; /* #3d4a0a */
     --color-primary-foreground: 15 17 23; /* #0f1117 */
     --color-accent: 250 204 21; /* #facc15 */
     --color-accent-foreground: 15 17 23; /* #0f1117 */
@@ -61,8 +61,8 @@
     --bg-surface: 14 14 26; /* #0E0E1A */
     --bg-surface-alt: 20 20 38; /* #141426 */
     --border-subtle: 22 59 25; /* vert sombre teinté (#39FF14 ~19% sur surface) */
-    --color-primary: 57 255 20; /* #39FF14 vert fluo pur */
-    --color-primary-dim: 13 46 5; /* #0D2E05 */
+    --color-primary: 200 241 53; /* #C8F135 */
+    --color-primary-dim: 61 74 10; /* #3d4a0a */
     --color-primary-foreground: 0 0 0; /* texte noir sur fluo */
     --color-accent: 255 230 0; /* #FFE600 jaune fluo pur */
     --color-accent-foreground: 0 0 0;

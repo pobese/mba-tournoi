@@ -63,6 +63,7 @@ const config: Config = {
         // Landing (marketing) uniquement — cf. (marketing)/layout.tsx
         bebas: ['var(--font-bebas)', 'sans-serif'],
         dmsans: ['var(--font-dmsans)', 'sans-serif'],
+        spacemono: ['var(--font-spacemono)', 'monospace'],
       },
       borderRadius: {
         lg: 'var(--radius)',
