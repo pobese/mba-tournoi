@@ -3,8 +3,8 @@
   <rect width="512" height="512" fill="#0f1117"/>
   <g transform="translate(256 256) scale(0.78) translate(-256 -256)">
     <g transform="rotate(-32 256 256)">
-      <ellipse cx="206" cy="186" rx="84" ry="104" fill="none" stroke="#4ade80" stroke-width="20"/>
-      <g stroke="#4ade80" stroke-width="6" opacity="0.55" clip-path="url(#headm)">
+      <ellipse cx="206" cy="186" rx="84" ry="104" fill="none" stroke="#C8F135" stroke-width="20"/>
+      <g stroke="#C8F135" stroke-width="6" opacity="0.55" clip-path="url(#headm)">
         <line x1="146" y1="82" x2="146" y2="290"/>
         <line x1="176" y1="82" x2="176" y2="290"/>
         <line x1="206" y1="82" x2="206" y2="290"/>
@@ -16,8 +16,8 @@
         <line x1="122" y1="220" x2="290" y2="220"/>
         <line x1="122" y1="254" x2="290" y2="254"/>
       </g>
-      <rect x="194" y="286" width="24" height="168" rx="12" fill="#4ade80"/>
-      <rect x="190" y="396" width="32" height="58" rx="14" fill="#166534"/>
+      <rect x="194" y="286" width="24" height="168" rx="12" fill="#C8F135"/>
+      <rect x="190" y="396" width="32" height="58" rx="14" fill="#3d4a0a"/>
     </g>
     <g transform="translate(348 322) rotate(28)">
       <path d="M0 0 L-46 -86 Q0 -106 46 -86 Z" fill="#f1f5f9"/>

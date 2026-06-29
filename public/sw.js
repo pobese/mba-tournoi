@@ -6,7 +6,7 @@
  *  - assets statiques (_next/static, images, fonts, css, js) : cache-first ;
  *  - API / auth / méthodes non-GET / cross-origin : jamais touchés.
  */
-const CACHE = 'racketclub-v1'
+const CACHE = 'racketclub-v2'
 const PRECACHE = ['/', '/manifest.json', '/icon-192.svg', '/icon-512.svg']
 
 self.addEventListener('install', (event) => {
