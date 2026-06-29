@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, Barlow_Condensed, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
 import { ThemeInitializer } from '@/components/ThemeInitializer'
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -24,9 +25,25 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'MBA Tournoi — Gestion de tournois de badminton',
-  description: 'Organisez vos tournois de badminton : américain, classique ou par rounds.',
+  title: 'RacketClub — La plateforme des clubs de badminton',
+  description:
+    'Tournois, classements, entraînement — tout ce dont votre club de badminton a besoin.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
+  applicationName: 'RacketClub',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/icon-192.svg',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'RacketClub',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#0f1117',
 }
 
 export default function RootLayout({
@@ -42,6 +59,7 @@ export default function RootLayout({
     >
       <body>
         <ThemeInitializer />
+        <ServiceWorkerRegister />
         <Providers>{children}</Providers>
       </body>
     </html>
