@@ -231,3 +231,86 @@
     animation: none;
   }
 }
+
+/* ============================================================
+ * LANDING RacketClub — effets inspirés du design « social ».
+ * Tout est scopé .rc-landing → aucun impact sur le reste de l'app.
+ * Couleurs via les variables du thème (jamais de hex) : les triplets
+ * RGB permettent l'alpha dans rgb(var(--x) / 0.xx).
+ * ============================================================ */
+
+/* Background : grille fine + halos radiaux du hero */
+.rc-landing .rc-grid {
+  background-image:
+    linear-gradient(rgb(var(--color-primary) / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--color-primary) / 0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.rc-landing .rc-hero-bg {
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgb(var(--color-primary) / 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 20% 80%, rgb(var(--color-special) / 0.06) 0%, transparent 60%);
+}
+
+/* Glow des boutons primaires (pill) */
+.rc-landing .btn-primary {
+  box-shadow: 0 4px 20px rgb(var(--color-primary) / 0.3);
+}
+.rc-landing .btn-primary:hover {
+  box-shadow: 0 8px 30px rgb(var(--color-primary) / 0.45);
+}
+
+/* Cartes flottantes du hero : rotation + flottement doux */
+.rc-landing .rc-card-1 {
+  transform: rotate(-4deg);
+  animation: rc-float 4s ease-in-out infinite;
+}
+.rc-landing .rc-card-2 {
+  transform: rotate(2deg);
+  animation: rc-float2 5s ease-in-out infinite;
+}
+.rc-landing .rc-card-3 {
+  transform: rotate(-1deg);
+}
+
+/* Apparition en fondu montant au chargement */
+.rc-landing .rc-fade {
+  animation: rc-fadeup 0.6s ease both;
+}
+
+@keyframes rc-fadeup {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes rc-float {
+  0%,
+  100% {
+    transform: rotate(-4deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-4deg) translateY(-8px);
+  }
+}
+@keyframes rc-float2 {
+  0%,
+  100% {
+    transform: rotate(2deg) translateY(0);
+  }
+  50% {
+    transform: rotate(2deg) translateY(-5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc-landing .rc-fade,
+  .rc-landing .rc-card-1,
+  .rc-landing .rc-card-2 {
+    animation: none;
+  }
+}

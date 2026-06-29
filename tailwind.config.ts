@@ -60,6 +60,9 @@ const config: Config = {
         display: ['var(--font-barlow)', 'sans-serif'],
         sans: ['var(--font-inter)', 'sans-serif'],
         mono: ['var(--font-jetbrains)', 'monospace'],
+        // Landing (marketing) uniquement — cf. (marketing)/layout.tsx
+        bebas: ['var(--font-bebas)', 'sans-serif'],
+        dmsans: ['var(--font-dmsans)', 'sans-serif'],
       },
       borderRadius: {
         lg: 'var(--radius)',
