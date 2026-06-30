@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { joinClubByToken } from '@/app/(app)/settings/club-actions'
+import { joinClubByToken } from '@/app/settings/club-actions'
 
 export function JoinClubButton({ token, clubName }: { token: string; clubName: string }) {
   const router = useRouter()

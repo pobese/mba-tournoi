@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   createClub, updateClub, regenerateInviteToken, inviteMemberToClub, requestToJoinClub,
-} from '@/app/(app)/settings/club-actions'
+} from '@/app/settings/club-actions'
 
 type ClubRole = 'admin' | 'member'
 

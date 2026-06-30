@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { MembersManager, type MemberRow } from '@/components/settings/MembersManager'
 import { ClubManager, type ClubData, type ClubMemberRow } from '@/components/settings/ClubManager'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -60,43 +61,47 @@ export default async function SettingsPage() {
   if (error) console.error('SettingsPage members:', error.code, error.message, error.hint)
 
   return (
-    <div className="space-y-6 font-dmsans">
-      <div>
-        <h1 className="font-bebas text-4xl tracking-[2px] text-text">Paramètres</h1>
-        <p className="mt-1 text-sm text-muted">Gérez votre club et les membres de votre organisation</p>
+    <main className="min-h-screen bg-app font-dmsans text-text">
+      <MarketingNav />
+
+      <div className="mx-auto max-w-3xl space-y-6 px-4 pb-16 pt-24 sm:px-8">
+        <div>
+          <h1 className="font-bebas text-4xl tracking-[2px] text-text sm:text-5xl">PARAMÈTRES</h1>
+          <p className="mt-1 text-sm text-muted">Gérez votre club et les membres de votre organisation</p>
+        </div>
+
+        <section className="relative overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
+          <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
+          <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Mon Club</h2>
+          <p className="mb-5 text-sm text-muted">
+            {club
+              ? 'Partagez le code ou le lien pour que vos adhérents rejoignent le club.'
+              : 'Créez votre club pour inviter vos adhérents et organiser vos tournois.'}
+          </p>
+          <ClubManager club={club} members={clubMembers} />
+        </section>
+
+        <section id="membres" className="relative scroll-mt-24 overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
+          <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
+          <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Membres de l&apos;organisation</h2>
+          <p className="mb-5 text-sm text-muted">
+            Invitez des membres pour partager la gestion de vos tournois. Un <strong className="text-text">admin</strong> peut
+            aussi créer des tournois ; un <strong className="text-text">éditeur</strong> gère uniquement les tournois existants.
+          </p>
+          <MembersManager
+            ownerId={user.id}
+            ownerEmail={user.email ?? '—'}
+            members={membersRaw ?? []}
+          />
+        </section>
+
+        <section className="relative overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
+          <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
+          <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Apparence</h2>
+          <p className="mb-5 text-sm text-muted">Choisissez le thème de l&apos;interface.</p>
+          <ThemeToggle variant="cards" />
+        </section>
       </div>
-
-      <section className="relative overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
-        <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
-        <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Mon Club</h2>
-        <p className="mb-5 text-sm text-muted">
-          {club
-            ? 'Partagez le code ou le lien pour que vos adhérents rejoignent le club.'
-            : 'Créez votre club pour inviter vos adhérents et organiser vos tournois.'}
-        </p>
-        <ClubManager club={club} members={clubMembers} />
-      </section>
-
-      <section className="relative overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
-        <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
-        <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Membres de l&apos;organisation</h2>
-        <p className="mb-5 text-sm text-muted">
-          Invitez des membres pour partager la gestion de vos tournois. Un <strong className="text-text">admin</strong> peut
-          aussi créer des tournois ; un <strong className="text-text">éditeur</strong> gère uniquement les tournois existants.
-        </p>
-        <MembersManager
-          ownerId={user.id}
-          ownerEmail={user.email ?? '—'}
-          members={membersRaw ?? []}
-        />
-      </section>
-
-      <section className="relative overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
-        <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
-        <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Apparence</h2>
-        <p className="mb-5 text-sm text-muted">Choisissez le thème de l&apos;interface.</p>
-        <ThemeToggle variant="cards" />
-      </section>
-    </div>
+    </main>
   )
 }

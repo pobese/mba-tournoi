@@ -21,7 +21,7 @@ import {
   inviteMember,
   updateMemberRole,
   removeMember,
-} from '@/app/(app)/settings/actions'
+} from '@/app/settings/actions'
 
 export interface MemberRow {
   id: string

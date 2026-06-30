@@ -93,7 +93,7 @@ export function HomeView() {
               style={{ animationDelay: '0.2s' }}
             >
               La première plateforme de sport de raquette pour les tournois publics et les
-              clubs privés. Crée un tournoi, trouve ton club et retrouve tes résultats.
+              clubs. Crée un tournoi, retrouve ton club et récupère des badges.
             </p>
 
             <div className="rc-fade mt-9 flex flex-wrap gap-3" style={{ animationDelay: '0.3s' }}>

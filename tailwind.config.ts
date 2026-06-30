@@ -31,6 +31,8 @@ const config: Config = {
           foreground: 'rgb(var(--color-text-muted) / <alpha-value>)',
         },
         special: 'rgb(var(--color-special, 191 95 255) / <alpha-value>)',
+        info: 'rgb(var(--color-info, 34 211 238) / <alpha-value>)',
+        warning: 'rgb(var(--color-warning, 251 146 60) / <alpha-value>)',
         text: 'rgb(var(--color-text) / <alpha-value>)',
         danger: 'rgb(var(--color-danger) / <alpha-value>)',
         // shadcn/ui CSS variable tokens (pointed at our palette)

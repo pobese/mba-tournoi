@@ -16,48 +16,51 @@
    */
   :root,
   :root[data-theme='dark'] {
-    /* Palette sémantique — mode sombre (triplets RGB pour l'alpha Tailwind) */
-    --bg-app: 15 17 23; /* #0f1117 */
-    --bg-surface: 26 29 46; /* #1a1d2e */
-    --bg-surface-alt: 37 40 64; /* #252840 */
-    --border-subtle: 46 49 80; /* #2e3150 */
+    /* Palette sémantique — mode sombre (triplets RGB pour l'alpha Tailwind).
+       Fonds NEUTRES (noir pur) pour un rendu sans teinte bleutée. */
+    --bg-app: 10 10 10; /* #0a0a0a noir pur */
+    --bg-surface: 20 20 20; /* #141414 cards (légèrement plus clair) */
+    --bg-surface-alt: 30 30 30; /* #1e1e1e inputs / hover */
+    --border-subtle: 38 38 38; /* #262626 */
     --color-primary: 200 241 53; /* #C8F135 */
     --color-primary-dim: 61 74 10; /* #3d4a0a */
-    --color-primary-foreground: 15 17 23; /* #0f1117 */
+    --color-primary-foreground: 10 10 10; /* #0a0a0a */
     --color-accent: 250 204 21; /* #facc15 */
-    --color-accent-foreground: 15 17 23; /* #0f1117 */
+    --color-accent-foreground: 10 10 10; /* #0a0a0a */
     --color-danger: 248 113 113; /* #f87171 */
-    --color-special: 191 95 255; /* #bf5fff */
-    --color-text: 241 245 249; /* #f1f5f9 */
-    --color-text-muted: 148 163 184; /* #94a3b8 */
+    --color-special: 167 139 250; /* #a78bfa violet KPI */
+    --color-info: 34 211 238; /* #22d3ee cyan KPI */
+    --color-warning: 251 146 60; /* #fb923c orange KPI */
+    --color-text: 241 245 249; /* #f1f5f9 — contraste ~18:1 sur #0a0a0a (AAA) */
+    --color-text-muted: 148 163 184; /* #94a3b8 — contraste ~6.9:1 (AA) */
 
-    /* Tokens shadcn/ui (HSL) — mode sombre */
-    --background: 225 13% 8%; /* #0f1117 */
+    /* Tokens shadcn/ui (HSL) — mode sombre NEUTRE (noir pur) */
+    --background: 0 0% 4%; /* #0a0a0a */
     --foreground: 214 32% 91%; /* #f1f5f9 */
-    --card: 228 25% 14%; /* #1a1d2e */
+    --card: 0 0% 8%; /* #141414 */
     --card-foreground: 214 32% 91%;
-    --popover: 228 25% 14%;
+    --popover: 0 0% 8%; /* #141414 */
     --popover-foreground: 214 32% 91%;
     --primary: 74 88% 58%; /* #C8F135 */
-    --primary-foreground: 225 13% 8%;
-    --secondary: 228 30% 20%; /* #252840 */
+    --primary-foreground: 0 0% 4%;
+    --secondary: 0 0% 12%; /* #1e1e1e */
     --secondary-foreground: 214 32% 91%;
-    --muted: 228 30% 20%;
+    --muted: 0 0% 12%;
     --muted-foreground: 215 20% 65%; /* #94a3b8 */
     --accent: 48 96% 53%; /* #facc15 */
-    --accent-foreground: 225 13% 8%;
+    --accent-foreground: 0 0% 4%;
     --destructive: 0 91% 71%; /* #f87171 */
-    --destructive-foreground: 225 13% 8%;
-    --border: 231 28% 25%; /* #2e3150 */
-    --input: 228 30% 20%;
+    --destructive-foreground: 0 0% 4%;
+    --border: 0 0% 15%; /* #262626 */
+    --input: 0 0% 12%;
     --ring: 74 88% 58%; /* #C8F135 */
     --radius: 0.5rem;
   }
 
   :root[data-theme='fluo'] {
     /* Palette sémantique — mode fluo SATURÉ (triplets RGB pour l'alpha Tailwind).
-       Fonds quasi-noirs pour faire claquer les fluos. */
-    --bg-app: 6 6 8; /* #060608 */
+       Fond noir pur ; surfaces légèrement plus claires/teintées pour faire claquer les fluos. */
+    --bg-app: 10 10 10; /* #0a0a0a noir pur */
     --bg-surface: 14 14 26; /* #0E0E1A */
     --bg-surface-alt: 20 20 38; /* #141426 */
     --border-subtle: 22 59 25; /* vert sombre teinté (#39FF14 ~19% sur surface) */
@@ -68,11 +71,13 @@
     --color-accent-foreground: 0 0 0;
     --color-danger: 255 45 85; /* #FF2D55 corail fluo */
     --color-special: 204 0 255; /* #CC00FF violet fluo pur */
+    --color-info: 34 211 238; /* #22d3ee cyan KPI */
+    --color-warning: 251 146 60; /* #fb923c orange KPI */
     --color-text: 255 255 255; /* #FFFFFF */
     --color-text-muted: 136 136 170; /* #8888AA */
 
     /* Tokens shadcn/ui (HSL) — mode fluo */
-    --background: 240 14% 3%; /* #060608 */
+    --background: 0 0% 4%; /* #0a0a0a */
     --foreground: 0 0% 100%; /* #ffffff */
     --card: 240 30% 8%; /* #0E0E1A */
     --card-foreground: 0 0% 100%;

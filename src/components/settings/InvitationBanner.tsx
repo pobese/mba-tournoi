@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { acceptInvitation, declineInvitation } from '@/app/(app)/settings/actions'
+import { acceptInvitation, declineInvitation } from '@/app/settings/actions'
 
 export interface PendingInvitation {
   id: string

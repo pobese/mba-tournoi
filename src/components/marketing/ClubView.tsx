@@ -141,18 +141,23 @@ export function ClubView() {
       {/* KPIs (vraies données) */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          { icon: '👥', val: memberCount, label: 'Membres actifs' },
-          { icon: '🏆', val: kpis.tournamentsMonth, label: 'Tournois ce mois' },
-          { icon: '🏸', val: kpis.matches, label: 'Matchs joués' },
-          { icon: '🎯', val: kpis.courts, label: 'Terrains' },
+          { icon: '👥', val: memberCount, label: 'Membres actifs', bar: 'bg-primary' },
+          { icon: '🏆', val: kpis.tournamentsMonth, label: 'Tournois ce mois', bar: 'bg-info' },
+          { icon: '🏸', val: kpis.matches, label: 'Matchs joués', bar: 'bg-warning' },
+          { icon: '🎯', val: kpis.courts, label: 'Terrains', bar: 'bg-special' },
         ].map((k) => (
           <div key={k.label} className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-surface p-5">
-            <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
+            <span className={`absolute inset-x-0 top-0 h-0.5 ${k.bar}`} />
             <div className="text-2xl">{k.icon}</div>
             <div className="mt-2 font-bebas text-3xl tracking-wide text-text tabular-nums">{k.val}</div>
             <div className="text-xs text-muted">{k.label}</div>
           </div>
         ))}
+      </div>
+      <div className="mt-3 text-right">
+        <Link href="/settings#membres" className="text-sm font-semibold text-primary hover:underline">
+          Voir tous les membres →
+        </Link>
       </div>
 
       {/* Invitation */}
@@ -165,32 +170,67 @@ export function ClubView() {
         />
       </div>
 
-      {/* Tournois du club */}
-      <h2 className="mb-3 mt-8 font-bebas text-2xl tracking-[1px] text-text">Tournois du club</h2>
-      {tournaments.length === 0 ? (
-        <div className="rounded-2xl border border-white/[0.06] bg-surface px-5 py-8 text-center text-sm text-muted">
-          Aucun tournoi pour l&apos;instant.{' '}
-          <Link href="/tournaments/new" className="font-semibold text-primary hover:underline">Créez le premier →</Link>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {tournaments.map((t) => (
+      {/* Tournois — privés / publics (is_public pas encore en base → tout privé) */}
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <TournamentColumn
+          title="🔒 Tournois privés"
+          desc="Réservés aux membres du club."
+          tournaments={tournaments}
+        />
+        <TournamentColumn
+          title="🌍 Tournois publics"
+          desc="Ouverts à tous les joueurs."
+          tournaments={[]}
+          footer={
+            <span
+              title="Bientôt disponible"
+              className="mt-4 inline-block cursor-not-allowed text-sm font-semibold text-muted"
+            >
+              Ouvrir un tournoi au public → <span className="text-xs">(bientôt)</span>
+            </span>
+          }
+        />
+      </div>
+    </div>
+  )
+}
+
+function TournamentColumn({
+  title, desc, tournaments, footer,
+}: {
+  title: string
+  desc: string
+  tournaments: ClubTournament[]
+  footer?: React.ReactNode
+}) {
+  return (
+    <div className="rounded-2xl border border-white/[0.06] bg-surface p-5 sm:p-6">
+      <h3 className="font-bebas text-xl tracking-wide text-text">{title}</h3>
+      <p className="mt-1 text-sm text-muted">{desc}</p>
+      <div className="mt-4 flex flex-col gap-2.5">
+        {tournaments.length === 0 ? (
+          <p className="rounded-lg border border-white/[0.04] bg-surface-alt px-4 py-3 text-sm text-muted">
+            Aucun tournoi pour l&apos;instant.
+          </p>
+        ) : (
+          tournaments.map((t) => (
             <Link
               key={t.id}
               href={`/tournaments/${t.id}`}
-              className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-surface px-4 py-3 transition-colors hover:border-primary/30"
+              className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-surface-alt px-4 py-3 transition-colors hover:border-primary/30"
             >
               <div className="min-w-0">
-                <div className="truncate font-semibold text-text">🏸 {t.name}</div>
+                <div className="truncate text-sm font-semibold text-text">🏸 {t.name}</div>
                 <div className="text-xs text-muted">{TOURNAMENT_TYPE_LABELS[t.type] ?? t.type}</div>
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-[0.7rem] font-bold ${STATUS_CLS[t.status] ?? 'bg-surface-alt text-muted'}`}>
                 {TOURNAMENT_STATUS_LABELS[t.status] ?? t.status}
               </span>
             </Link>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
+      {footer}
     </div>
   )
 }
