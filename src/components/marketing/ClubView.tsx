@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Building2, Copy, Loader2, Plus, Settings, Users } from 'lucide-react'
-import { toast } from 'sonner'
+import { Building2, Loader2, Plus, Settings } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase/client'
 import { TOURNAMENT_TYPE_LABELS, TOURNAMENT_STATUS_LABELS, MATCH_STATUS, CLUB_DEFAULT_COURTS } from '@/lib/constants'
 
@@ -12,8 +11,6 @@ interface ClubOverview {
   name: string
   full_name: string | null
   city: string | null
-  invite_code: string | null
-  invite_token: string
 }
 
 interface ClubTournament {
@@ -45,7 +42,7 @@ export function ClubView() {
 
       const { data: owned } = await supabase
         .from('clubs')
-        .select('id, name, full_name, city, invite_code, invite_token')
+        .select('id, name, full_name, city')
         .eq('owner_id', user.id)
         .eq('is_active', true)
         .limit(1)
@@ -109,13 +106,13 @@ export function ClubView() {
   if (!club) return <NoClub />
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-16 pt-24 sm:px-8">
+    <div className="mx-auto max-w-screen-2xl px-4 pb-16 pt-24 sm:px-8 lg:px-12">
       {/* En-tête */}
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-3xl">🏢</div>
           <div>
-            <h1 className="font-bebas text-3xl tracking-[2px] text-text sm:text-4xl">{club.name}</h1>
+            <h1 className="font-bebas text-4xl tracking-[2px] text-text sm:text-5xl lg:text-6xl">{club.name}</h1>
             <p className="text-sm text-muted">
               {[club.full_name, club.city].filter(Boolean).join(' · ') || 'Votre club'}
               {' · '}{memberCount} membre{memberCount > 1 ? 's' : ''}
@@ -154,20 +151,9 @@ export function ClubView() {
           </div>
         ))}
       </div>
-      <div className="mt-3 text-right">
-        <Link href="/settings#membres" className="text-sm font-semibold text-primary hover:underline">
-          Voir tous les membres →
-        </Link>
-      </div>
-
-      {/* Invitation */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <CopyCard label="Code d'invitation" value={club.invite_code ?? '—'} display={club.invite_code ?? '—'} mono />
-        <CopyCard
-          label="Lien partageable"
-          value={typeof window !== 'undefined' ? `${window.location.origin}/rejoindre/${club.invite_token}` : ''}
-          display={`…/rejoindre/${club.invite_token.slice(0, 8)}…`}
-        />
+      <div className="mt-3 flex flex-wrap justify-end gap-x-5 gap-y-1 text-sm font-semibold">
+        <Link href="/club/membres" className="text-primary hover:underline">Voir tous les membres →</Link>
+        <Link href="/settings#membres" className="text-muted hover:text-primary">Inviter des membres →</Link>
       </div>
 
       {/* Tournois — privés / publics (is_public pas encore en base → tout privé) */}
@@ -249,39 +235,6 @@ function NoClub() {
       >
         <Building2 className="h-4 w-4" /> Créer mon club
       </Link>
-    </div>
-  )
-}
-
-function CopyCard({ label, value, display, mono }: { label: string; value: string; display: string; mono?: boolean }) {
-  async function copy() {
-    if (!value) return
-    try {
-      await navigator.clipboard.writeText(value)
-      toast.success(`${label} copié`)
-    } catch {
-      toast.error('Copie impossible')
-    }
-  }
-  return (
-    <div className="rounded-2xl border border-white/[0.06] bg-surface p-5">
-      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted">
-        {label === 'Code d\'invitation' ? <Users className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-        {label}
-      </div>
-      <div className="mt-2 flex items-center gap-2">
-        <span className={`flex-1 truncate text-text ${mono ? 'font-spacemono text-2xl font-bold tracking-[3px] text-accent' : 'text-sm'}`}>
-          {display}
-        </span>
-        <button
-          type="button"
-          onClick={copy}
-          className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-alt hover:text-primary"
-          aria-label={`Copier ${label}`}
-        >
-          <Copy className="h-4 w-4" />
-        </button>
-      </div>
     </div>
   )
 }

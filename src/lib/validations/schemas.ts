@@ -291,6 +291,13 @@ export const JoinClubByTokenSchema = z.object({
   token: z.string().uuid('Lien invalide'),
 })
 
+export const ClubMemberIdSchema = z.object({ memberId: z.string().uuid() })
+
+export const UpdateClubMemberRoleSchema = z.object({
+  memberId: z.string().uuid(),
+  role: z.enum(['admin', 'editor', 'member']),
+})
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const LoginSchema = z.object({
   email: z.string().email('Email invalide'),

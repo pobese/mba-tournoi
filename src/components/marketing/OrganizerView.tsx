@@ -21,8 +21,8 @@ export function OrganizerView() {
   const [tab, setTab] = useState<Tab>('bracket')
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-16 pt-24 sm:px-8">
-      <h1 className="font-bebas text-3xl tracking-[2px] text-text sm:text-4xl">OPEN AMÉRICAIN MAULE — 🏸</h1>
+    <div className="mx-auto max-w-screen-2xl px-4 pb-16 pt-24 sm:px-8 lg:px-12">
+      <h1 className="font-bebas text-4xl tracking-[2px] text-text sm:text-5xl">OPEN AMÉRICAIN MAULE — 🏸</h1>
       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
         <span>📅 Samedi 5 Juillet 2026</span>
         <span>👥 24 joueurs inscrits</span>

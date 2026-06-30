@@ -12,6 +12,8 @@ import {
   ClubIdSchema,
   JoinClubByCodeSchema,
   JoinClubByTokenSchema,
+  ClubMemberIdSchema,
+  UpdateClubMemberRoleSchema,
 } from '@/lib/validations/schemas'
 import {
   CLUB_ROLES,
@@ -392,4 +394,63 @@ export async function regenerateInviteToken(clubId: string) {
 
   revalidatePath('/settings')
   return { success: true as const, inviteToken: newToken }
+}
+
+// ─── Gestion des membres du club (page /club/membres) ──────────────────────────
+
+/** Change le rôle d'un membre du club. Réservé owner/admin ; l'owner reste intouchable. */
+export async function updateClubMemberRole(memberId: string, role: 'admin' | 'editor' | 'member') {
+  const parsed = UpdateClubMemberRoleSchema.safeParse({ memberId, role })
+  if (!parsed.success) return { error: 'Données invalides' }
+
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/login')
+
+  const admin = createServiceRoleClient()
+  const { data: row } = await admin
+    .from('club_members').select('club_id, role').eq('id', parsed.data.memberId).maybeSingle() as {
+      data: { club_id: string; role: string } | null
+    }
+  if (!row) return { error: 'Membre introuvable' }
+  if (row.role === 'owner') return { error: 'Le propriétaire ne peut pas être modifié.' }
+  if (!(await isClubAdmin(admin, row.club_id, user.id))) return { error: 'Permission refusée' }
+
+  const { error } = await admin
+    .from('club_members').update({ role: parsed.data.role }).eq('id', parsed.data.memberId)
+  if (error) {
+    logErr('updateClubMemberRole', error)
+    return { error: error.message }
+  }
+
+  revalidatePath('/club/membres')
+  return { success: true as const }
+}
+
+/** Retire un membre du club. Réservé owner/admin ; l'owner ne peut être retiré. */
+export async function removeClubMember(memberId: string) {
+  const parsed = ClubMemberIdSchema.safeParse({ memberId })
+  if (!parsed.success) return { error: 'Identifiant invalide' }
+
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/login')
+
+  const admin = createServiceRoleClient()
+  const { data: row } = await admin
+    .from('club_members').select('club_id, role').eq('id', parsed.data.memberId).maybeSingle() as {
+      data: { club_id: string; role: string } | null
+    }
+  if (!row) return { error: 'Membre introuvable' }
+  if (row.role === 'owner') return { error: 'Le propriétaire ne peut pas être retiré.' }
+  if (!(await isClubAdmin(admin, row.club_id, user.id))) return { error: 'Permission refusée' }
+
+  const { error } = await admin.from('club_members').delete().eq('id', parsed.data.memberId)
+  if (error) {
+    logErr('removeClubMember', error)
+    return { error: error.message }
+  }
+
+  revalidatePath('/club/membres')
+  return { success: true as const }
 }

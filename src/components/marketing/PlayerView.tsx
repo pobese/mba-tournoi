@@ -12,14 +12,14 @@ export function PlayerView() {
   return (
     <div className="pt-16">
       {/* Profil */}
-      <div className="relative overflow-hidden border-b border-subtle bg-gradient-to-br from-surface-alt to-app px-4 py-12 sm:px-8">
+      <div className="relative overflow-hidden border-b border-subtle bg-gradient-to-br from-surface-alt to-app px-4 py-12 sm:px-8 lg:px-12">
         <div className="rc-hero-bg absolute inset-0" />
-        <div className="relative z-10 mx-auto flex max-w-5xl flex-wrap items-end gap-6">
+        <div className="relative z-10 mx-auto flex max-w-screen-2xl flex-wrap items-end gap-6">
           <div className="flex h-24 w-24 items-center justify-center rounded-full border-2 border-app bg-primary font-bebas text-4xl text-primary-foreground">
             LM
           </div>
           <div className="flex-1">
-            <h1 className="font-bebas text-4xl tracking-[2px] text-text">LÉO MARTIN</h1>
+            <h1 className="font-bebas text-4xl tracking-[2px] text-text sm:text-5xl">LÉO MARTIN</h1>
             <p className="mt-1 text-sm text-muted">🏢 Membre MBA · Depuis 2026 · 5 tournois joués</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {BADGES.map((b) => (
@@ -36,7 +36,7 @@ export function PlayerView() {
       </div>
 
       {/* Corps */}
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
+      <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-8 lg:px-12">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           {STATS.map((s) => (

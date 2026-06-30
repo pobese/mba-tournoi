@@ -69,7 +69,7 @@ export function HomeView() {
         <div className="rc-hero-bg absolute inset-0 z-0" />
         <div className="rc-grid absolute inset-0 z-0" />
 
-        <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-4 py-16 sm:px-8 lg:grid-cols-2 lg:gap-16">
+        <div className="relative z-10 mx-auto grid max-w-screen-2xl grid-cols-1 items-center gap-12 px-4 py-16 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:px-12">
           <div>
             <div className="rc-fade mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[1px] text-primary">
               <span className="relative flex h-1.5 w-1.5">
@@ -89,7 +89,7 @@ export function HomeView() {
             </h1>
 
             <p
-              className="rc-fade mt-6 max-w-md text-base leading-relaxed text-muted sm:text-lg"
+              className="rc-fade mt-6 max-w-xl text-lg leading-relaxed text-muted sm:text-xl"
               style={{ animationDelay: '0.2s' }}
             >
               La première plateforme de sport de raquette pour les tournois publics et les
@@ -136,10 +136,10 @@ export function HomeView() {
       </section>
 
       {/* ===== Tournois à la une ===== */}
-      <section className="border-t border-subtle px-4 py-20 sm:px-8">
-        <div className="mx-auto max-w-6xl">
+      <section className="border-t border-subtle px-4 py-20 sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-screen-2xl">
           <p className="mb-2 font-spacemono text-xs uppercase tracking-[3px] text-primary">// Découvrir</p>
-          <h2 className="font-bebas text-4xl tracking-[2px] text-text sm:text-5xl">TOURNOIS À LA UNE</h2>
+          <h2 className="font-bebas text-5xl tracking-[2px] text-text sm:text-6xl">TOURNOIS À LA UNE</h2>
           <p className="mt-2 max-w-lg text-muted">Des tournois ouverts à tous, organisés par les clubs.</p>
 
           <div className="mt-6 flex flex-wrap gap-2.5">
