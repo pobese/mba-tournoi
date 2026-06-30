@@ -55,12 +55,15 @@ export function ClubView() {
       setClub(c)
       if (c) {
         const [{ data: members }, { data: tourns }] = await Promise.all([
-          supabase.from('club_members').select('id').eq('club_id', c.id),
+          supabase.from('club_members').select('user_id').eq('club_id', c.id),
           supabase.from('tournaments').select('id, name, type, status').eq('club_id', c.id).order('created_at', { ascending: false }),
         ])
         if (!active) return
-        // L'owner n'est pas une ligne club_members → +1.
-        setMemberCount((members?.length ?? 0) + 1)
+        // L'owner est parfois déjà une ligne club_members, parfois non → union
+        // d'IDs (avec l'owner = user courant) pour ne jamais le compter en double.
+        const ids = new Set(((members as { user_id: string }[] | null) ?? []).map((m) => m.user_id))
+        ids.add(user.id)
+        setMemberCount(ids.size)
         setTournaments((tourns as ClubTournament[] | null) ?? [])
       }
       setLoading(false)
