@@ -10,6 +10,13 @@ import { Loader2 } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase/client'
 import { RegisterSchema, type RegisterInput } from '@/lib/validations/schemas'
 
+/** Lit ?redirect= et n'accepte qu'un chemin interne (anti open-redirect). */
+function safeRedirect(): string {
+  if (typeof window === 'undefined') return '/'
+  const r = new URLSearchParams(window.location.search).get('redirect')
+  return r && r.startsWith('/') && !r.startsWith('//') ? r : '/'
+}
+
 export default function RegisterPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -23,11 +30,16 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterInput) {
     setLoading(true)
     try {
+      const redirectTo = safeRedirect()
       const supabase = createBrowserSupabaseClient()
       const { data: signUpData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
-        options: { data: { full_name: data.name } },
+        options: {
+          data: { full_name: data.name },
+          // Après confirmation d'email → callback qui ramène vers la destination.
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+        },
       })
 
       if (error) {
@@ -40,12 +52,13 @@ export default function RegisterPage() {
           description: `Un lien de confirmation a été envoyé à ${data.email}.`,
           duration: 8000,
         })
-        router.push('/login')
+        const loginHref = redirectTo === '/' ? '/login' : `/login?redirect=${encodeURIComponent(redirectTo)}`
+        router.push(loginHref)
         return
       }
 
       toast.success('Compte créé !', { description: 'Bienvenue sur RacketClub.' })
-      router.push('/')
+      router.push(redirectTo)
       router.refresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inattendue'

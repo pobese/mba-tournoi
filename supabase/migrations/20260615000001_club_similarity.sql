@@ -1,0 +1,52 @@
+-- =============================================================================
+-- PHASE 2 — Détection de clubs en doublon : find_similar_club + pg_trgm
+-- =============================================================================
+-- ✅ DÉJÀ EN PROD (confirmé par introspection RPC le 2026-06-30) : l'extension
+--    pg_trgm est active et la fonction public.find_similar_club(p_name, p_city,
+--    p_sport) existe avec la signature de retour (id uuid, name text, city text,
+--    score real). Le code applicatif (createClub) l'appelle déjà avec succès.
+--
+-- ⚠️  Fichier de RÉFÉRENCE — volontairement SANS `create or replace` actif :
+--     la fonction a été créée lors d'une session antérieure et son corps exact
+--     n'est pas dans l'historique. Pour figer la référence au octet près,
+--     exécuter en prod :
+--
+--         SELECT pg_get_functiondef(oid)
+--         FROM pg_proc
+--         WHERE proname = 'find_similar_club';
+--
+--     puis remplacer le bloc commenté ci-dessous par la sortie obtenue.
+--
+--     NE PAS décommenter pour ré-appliquer (un `create or replace` avec un corps
+--     reconstruit écraserait la fonction de prod qui fonctionne).
+-- =============================================================================
+
+-- create extension if not exists pg_trgm;  -- déjà actif en prod
+
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ Référence (corps présumé — à confirmer via pg_get_functiondef ci-dessus).  │
+-- └──────────────────────────────────────────────────────────────────────────┘
+-- create or replace function public.find_similar_club(
+--   p_name  text,
+--   p_city  text,
+--   p_sport text
+-- )
+-- returns table (id uuid, name text, city text, score real)
+-- language sql
+-- stable
+-- security definer
+-- set search_path = public
+-- as $$
+--   select c.id, c.name, c.city, similarity(c.name, p_name) as score
+--   from public.clubs c
+--   where c.is_active
+--     and c.sport = p_sport
+--     and p_city is not null
+--     and c.city is not null
+--     and lower(c.city) = lower(p_city)
+--     and similarity(c.name, p_name) > 0.4
+--   order by score desc
+--   limit 5;
+-- $$;
+--
+-- grant execute on function public.find_similar_club(text, text, text) to authenticated, service_role;

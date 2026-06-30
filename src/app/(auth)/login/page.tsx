@@ -10,6 +10,13 @@ import { Loader2 } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase/client'
 import { LoginSchema, type LoginInput } from '@/lib/validations/schemas'
 
+/** Lit ?redirect= et n'accepte qu'un chemin interne (anti open-redirect). */
+function safeRedirect(): string {
+  if (typeof window === 'undefined') return '/'
+  const r = new URLSearchParams(window.location.search).get('redirect')
+  return r && r.startsWith('/') && !r.startsWith('//') ? r : '/'
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -40,7 +47,7 @@ export default function LoginPage() {
         return
       }
 
-      router.push('/')
+      router.push(safeRedirect())
       router.refresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inattendue'

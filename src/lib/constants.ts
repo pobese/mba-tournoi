@@ -71,3 +71,19 @@ export const TOURNAMENT_STATUS_LABELS: Record<string, string> = {
   ongoing: 'En cours',
   finished: 'Terminé',
 }
+
+// ─── Clubs ──────────────────────────────────────────────────────────────────
+export const CLUB_ROLES = {
+  ADMIN: 'admin',
+  MEMBER: 'member',
+} as const
+
+export const CLUB_DEFAULT_SPORT = 'badminton'
+
+export const CLUB_NAME_MIN = 2
+export const CLUB_NAME_MAX = 60
+
+// Code d'invitation court (ex. "9F0727") : alphabet sans caractères ambigus
+// (pas de 0/O ni 1/I/L) pour la dictée orale / WhatsApp.
+export const CLUB_INVITE_CODE_LENGTH = 6
+export const CLUB_INVITE_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'

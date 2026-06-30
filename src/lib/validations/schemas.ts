@@ -8,6 +8,9 @@ import {
   TOURNAMENT_NAME_MAX,
   AMERICAN_MIN_PLAYERS,
   MAX_BADMINTON_SCORE,
+  CLUB_NAME_MIN,
+  CLUB_NAME_MAX,
+  CLUB_DEFAULT_SPORT,
 } from '@/lib/constants'
 
 // ─── Players ─────────────────────────────────────────────────────────────────
@@ -245,6 +248,47 @@ export const MemberIdSchema = z.object({
 
 export const InvitationIdSchema = z.object({
   invitationId: z.string().uuid(),
+})
+
+// ─── Clubs ──────────────────────────────────────────────────────────────────
+// Ville / CP optionnels : '' est toléré et normalisé en undefined côté action.
+const optionalText = (max: number) =>
+  z.string().trim().max(max).optional().or(z.literal(''))
+
+export const CreateClubSchema = z.object({
+  name: z.string().trim().min(CLUB_NAME_MIN, 'Nom trop court').max(CLUB_NAME_MAX),
+  fullName: optionalText(120),
+  city: optionalText(80),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^\d{5}$/, 'Code postal à 5 chiffres')
+    .optional()
+    .or(z.literal('')),
+  sport: z.string().trim().min(2).max(40).default(CLUB_DEFAULT_SPORT),
+})
+export type CreateClubInput = z.infer<typeof CreateClubSchema>
+
+export const UpdateClubSchema = CreateClubSchema.partial().extend({
+  clubId: z.string().uuid(),
+  name: z.string().trim().min(CLUB_NAME_MIN, 'Nom trop court').max(CLUB_NAME_MAX),
+})
+export type UpdateClubInput = z.infer<typeof UpdateClubSchema>
+
+export const InviteClubMemberSchema = z.object({
+  clubId: z.string().uuid(),
+  email: z.string().email('Email invalide'),
+  role: z.enum(['admin', 'member']),
+})
+
+export const ClubIdSchema = z.object({ clubId: z.string().uuid() })
+
+export const JoinClubByCodeSchema = z.object({
+  inviteCode: z.string().trim().min(4).max(12),
+})
+
+export const JoinClubByTokenSchema = z.object({
+  token: z.string().uuid('Lien invalide'),
 })
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
