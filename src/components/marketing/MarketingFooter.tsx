@@ -7,7 +7,7 @@ export function MarketingFooter() {
         </span>
         <span className="text-2xl">🏸</span>
         <p className="text-sm text-muted">
-          © 2026 RacketClub — Tournois publics &amp; clubs privés. Construit par des joueurs.
+          © 2026 RacketClub — Tournois publics &amp; clubs privés. Construit par des joueurs pour des joueurs.
         </p>
       </div>
     </footer>
