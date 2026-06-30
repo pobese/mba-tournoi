@@ -143,7 +143,7 @@ export function ClubView() {
           { icon: '🏸', val: kpis.matches, label: 'Matchs joués', bar: 'bg-warning' },
           { icon: '🎯', val: kpis.courts, label: 'Terrains', bar: 'bg-special' },
         ].map((k) => (
-          <div key={k.label} className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-surface p-5">
+          <div key={k.label} className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-surface p-5 transition-all duration-200 hover:scale-[1.02] hover:border-primary/40 hover:shadow-[0_0_20px_rgba(200,241,53,0.1)]">
             <span className={`absolute inset-x-0 top-0 h-0.5 ${k.bar}`} />
             <div className="text-2xl">{k.icon}</div>
             <div className="mt-2 font-bebas text-3xl tracking-wide text-text tabular-nums">{k.val}</div>
@@ -203,7 +203,7 @@ function TournamentColumn({
             <Link
               key={t.id}
               href={`/tournaments/${t.id}`}
-              className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-surface-alt px-4 py-3 transition-colors hover:border-primary/30"
+              className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-surface-alt px-4 py-3 transition-all duration-200 hover:scale-[1.02] hover:border-primary/40 hover:shadow-[0_0_20px_rgba(200,241,53,0.1)]"
             >
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-text">🏸 {t.name}</div>

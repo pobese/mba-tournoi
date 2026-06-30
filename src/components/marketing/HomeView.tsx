@@ -176,7 +176,7 @@ function TournamentCard({ t }: { t: PublicTournament }) {
   const full = t.status === 'full'
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface transition-all hover:-translate-y-1 hover:border-primary/25">
+    <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface transition-all duration-200 hover:scale-[1.02] hover:border-primary/40 hover:shadow-[0_0_20px_rgba(200,241,53,0.1)]">
       <div className="relative overflow-hidden bg-gradient-to-br from-surface-alt to-app p-5">
         <span aria-hidden="true" className="absolute -right-2 -top-2 text-7xl opacity-10">
           🏸
