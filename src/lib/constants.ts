@@ -87,3 +87,6 @@ export const CLUB_NAME_MAX = 60
 // (pas de 0/O ni 1/I/L) pour la dictée orale / WhatsApp.
 export const CLUB_INVITE_CODE_LENGTH = 6
 export const CLUB_INVITE_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+
+// Nombre de terrains affiché par défaut quand aucun tournoi du club n'a de config.
+export const CLUB_DEFAULT_COURTS = 9

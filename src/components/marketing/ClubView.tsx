@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Building2, Copy, Loader2, Plus, Settings, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { createBrowserSupabaseClient } from '@/lib/supabase/client'
-import { TOURNAMENT_TYPE_LABELS, TOURNAMENT_STATUS_LABELS } from '@/lib/constants'
+import { TOURNAMENT_TYPE_LABELS, TOURNAMENT_STATUS_LABELS, MATCH_STATUS, CLUB_DEFAULT_COURTS } from '@/lib/constants'
 
 interface ClubOverview {
   id: string
@@ -34,6 +34,7 @@ export function ClubView() {
   const [club, setClub] = useState<ClubOverview | null>(null)
   const [memberCount, setMemberCount] = useState(0)
   const [tournaments, setTournaments] = useState<ClubTournament[]>([])
+  const [kpis, setKpis] = useState({ tournamentsMonth: 0, matches: 0, courts: CLUB_DEFAULT_COURTS })
 
   useEffect(() => {
     let active = true
@@ -56,15 +57,41 @@ export function ClubView() {
       if (c) {
         const [{ data: members }, { data: tourns }] = await Promise.all([
           supabase.from('club_members').select('user_id').eq('club_id', c.id),
-          supabase.from('tournaments').select('id, name, type, status').eq('club_id', c.id).order('created_at', { ascending: false }),
+          supabase
+            .from('tournaments')
+            .select('id, name, type, status, config, created_at')
+            .eq('club_id', c.id)
+            .order('created_at', { ascending: false }),
         ])
         if (!active) return
+
         // L'owner est parfois déjà une ligne club_members, parfois non → union
         // d'IDs (avec l'owner = user courant) pour ne jamais le compter en double.
         const ids = new Set(((members as { user_id: string }[] | null) ?? []).map((m) => m.user_id))
         ids.add(user.id)
         setMemberCount(ids.size)
-        setTournaments((tourns as ClubTournament[] | null) ?? [])
+
+        const rows = (tourns as Array<ClubTournament & { config: { courtsAvailable?: number } | null; created_at: string }> | null) ?? []
+        setTournaments(rows)
+
+        const now = new Date()
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        const tournamentsMonth = rows.filter((t) => new Date(t.created_at) >= startOfMonth).length
+        const courts = rows.reduce((mx, t) => Math.max(mx, Number(t.config?.courtsAvailable ?? 0)), 0) || CLUB_DEFAULT_COURTS
+
+        // Matchs joués : count() côté Supabase (pas de fetch des rows) sur les tournois du club.
+        let matches = 0
+        const tourIds = rows.map((t) => t.id)
+        if (tourIds.length) {
+          const { count } = await supabase
+            .from('matches')
+            .select('id', { count: 'exact', head: true })
+            .in('tournament_id', tourIds)
+            .eq('status', MATCH_STATUS.DONE)
+          if (!active) return
+          matches = count ?? 0
+        }
+        setKpis({ tournamentsMonth, matches, courts })
       }
       setLoading(false)
     })()
@@ -111,8 +138,25 @@ export function ClubView() {
         </div>
       </div>
 
+      {/* KPIs (vraies données) */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {[
+          { icon: '👥', val: memberCount, label: 'Membres actifs' },
+          { icon: '🏆', val: kpis.tournamentsMonth, label: 'Tournois ce mois' },
+          { icon: '🏸', val: kpis.matches, label: 'Matchs joués' },
+          { icon: '🎯', val: kpis.courts, label: 'Terrains' },
+        ].map((k) => (
+          <div key={k.label} className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-surface p-5">
+            <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
+            <div className="text-2xl">{k.icon}</div>
+            <div className="mt-2 font-bebas text-3xl tracking-wide text-text tabular-nums">{k.val}</div>
+            <div className="text-xs text-muted">{k.label}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Invitation */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <CopyCard label="Code d'invitation" value={club.invite_code ?? '—'} display={club.invite_code ?? '—'} mono />
         <CopyCard
           label="Lien partageable"

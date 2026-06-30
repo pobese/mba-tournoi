@@ -60,7 +60,7 @@ const config: Config = {
         display: ['var(--font-barlow)', 'sans-serif'],
         sans: ['var(--font-inter)', 'sans-serif'],
         mono: ['var(--font-jetbrains)', 'monospace'],
-        // Landing (marketing) uniquement — cf. (marketing)/layout.tsx
+        // Chargées globalement dans le root layout (landing + /settings + nav app).
         bebas: ['var(--font-bebas)', 'sans-serif'],
         dmsans: ['var(--font-dmsans)', 'sans-serif'],
         spacemono: ['var(--font-spacemono)', 'monospace'],

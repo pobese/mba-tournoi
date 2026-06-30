@@ -28,8 +28,8 @@ export default async function AppLayout({
       {/* Sidebar desktop */}
       <aside className="hidden lg:flex flex-col w-56 border-r border-subtle bg-surface shrink-0">
         <div className="p-5 border-b border-subtle">
-          <span className="font-display font-extrabold text-xl text-white">
-            MBA <span className="text-primary">Tournoi</span>
+          <span className="font-bebas text-2xl tracking-[2px] text-text">
+            MBA <span className="text-primary">TOURNOI</span>
           </span>
         </div>
 
@@ -64,8 +64,8 @@ export default async function AppLayout({
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header mobile (sidebar masquée < lg) */}
         <header className="lg:hidden flex items-center justify-between border-b border-subtle bg-surface px-4 py-3">
-          <span className="font-display font-extrabold text-lg text-white">
-            MBA <span className="text-primary">Tournoi</span>
+          <span className="font-bebas text-xl tracking-[2px] text-text">
+            MBA <span className="text-primary">TOURNOI</span>
           </span>
           <ThemeToggle variant="compact" />
         </header>

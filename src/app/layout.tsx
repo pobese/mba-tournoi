@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Barlow_Condensed, JetBrains_Mono } from 'next/font/google'
+import { Inter, Barlow_Condensed, JetBrains_Mono, Bebas_Neue, DM_Sans, Space_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
 import { ThemeInitializer } from '@/components/ThemeInitializer'
@@ -22,6 +22,32 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains',
   display: 'swap',
+})
+
+// Fonts de la landing — désormais globales (réutilisées par /settings et la nav app).
+// preload: false → pas de poids ajouté aux pages app qui ne s'en servent pas.
+const bebas = Bebas_Neue({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-bebas',
+  display: 'swap',
+  preload: false,
+})
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '700'],
+  variable: '--font-dmsans',
+  display: 'swap',
+  preload: false,
+})
+
+const spaceMono = Space_Mono({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-spacemono',
+  display: 'swap',
+  preload: false,
 })
 
 export const metadata: Metadata = {
@@ -55,7 +81,7 @@ export default function RootLayout({
     <html
       lang="fr"
       data-theme="dark"
-      className={`${inter.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} dark`}
+      className={`${inter.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} ${bebas.variable} ${dmSans.variable} ${spaceMono.variable} dark`}
     >
       <body>
         <ThemeInitializer />
