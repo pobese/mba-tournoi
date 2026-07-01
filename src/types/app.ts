@@ -95,7 +95,7 @@ export interface ClubOverviewResult {
   isPlatformAdmin: boolean
   memberCount: number
   tournaments: Array<{ id: string; name: string; type: string; status: string }>
-  kpis: { tournamentsMonth: number; matches: number; courts: number }
+  kpis: { tournamentsTotal: number; matches: number; courts: number }
 }
 
 // ─── Algorithm types ──────────────────────────────────────────────────────────

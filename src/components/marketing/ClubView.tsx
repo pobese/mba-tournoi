@@ -29,7 +29,7 @@ export function ClubView() {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   const [memberCount, setMemberCount] = useState(0)
   const [tournaments, setTournaments] = useState<ClubTournament[]>([])
-  const [kpis, setKpis] = useState({ tournamentsMonth: 0, matches: 0, courts: CLUB_DEFAULT_COURTS })
+  const [kpis, setKpis] = useState({ tournamentsTotal: 0, matches: 0, courts: CLUB_DEFAULT_COURTS })
 
   async function load() {
     const res = await getClubOverview()
@@ -100,7 +100,7 @@ export function ClubView() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           { icon: '👥', val: memberCount, label: 'Membres actifs', bar: 'bg-primary' },
-          { icon: '🏆', val: kpis.tournamentsMonth, label: 'Tournois ce mois', bar: 'bg-info' },
+          { icon: '🏆', val: kpis.tournamentsTotal, label: 'Tournois au total', bar: 'bg-info' },
           { icon: '🏸', val: kpis.matches, label: 'Matchs joués', bar: 'bg-warning' },
           { icon: '🎯', val: kpis.courts, label: 'Terrains', bar: 'bg-special' },
         ].map((k) => (

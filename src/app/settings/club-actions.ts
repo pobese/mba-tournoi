@@ -469,7 +469,7 @@ const EMPTY_OVERVIEW: ClubOverviewResult = {
   isPlatformAdmin: false,
   memberCount: 0,
   tournaments: [],
-  kpis: { tournamentsMonth: 0, matches: 0, courts: CLUB_DEFAULT_COURTS },
+  kpis: { tournamentsTotal: 0, matches: 0, courts: CLUB_DEFAULT_COURTS },
 }
 
 /**
@@ -542,10 +542,8 @@ export async function getClubOverview(): Promise<ClubOverviewResult> {
   const rows = tourns ?? []
   const tournaments = rows.map(({ id, name, type, status }) => ({ id, name, type, status }))
 
-  const startOfMonth = new Date()
-  startOfMonth.setDate(1)
-  startOfMonth.setHours(0, 0, 0, 0)
-  const tournamentsMonth = rows.filter((t) => new Date(t.created_at) >= startOfMonth).length
+  // Nombre total de tournois du club depuis le début (pas seulement le mois courant).
+  const tournamentsTotal = rows.length
   const courts = rows.reduce((mx, t) => Math.max(mx, Number(t.config?.courtsAvailable ?? 0)), 0) || CLUB_DEFAULT_COURTS
 
   let matches = 0
@@ -564,7 +562,7 @@ export async function getClubOverview(): Promise<ClubOverviewResult> {
   }
   return {
     club: clubPublic, role, isPlatformAdmin: platformAdmin, memberCount, tournaments,
-    kpis: { tournamentsMonth, matches, courts },
+    kpis: { tournamentsTotal, matches, courts },
   }
 }
 
