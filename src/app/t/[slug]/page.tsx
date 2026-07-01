@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tournament) return { title: 'Tournoi introuvable' }
 
   return {
-    title: `${tournament.name} — MBA Tournoi`,
+    title: `${tournament.name} — RacketClub`,
     description: `Suivez le tournoi ${TOURNAMENT_TYPE_LABELS[tournament.type] ?? tournament.type} en temps réel.`,
   }
 }

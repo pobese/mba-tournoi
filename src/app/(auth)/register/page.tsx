@@ -69,21 +69,25 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-app flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="font-display text-3xl font-extrabold text-white">
-            MBA <span className="text-primary">Tournoi</span>
-          </h1>
-          <p className="text-muted text-sm mt-2">Créez votre compte gratuit</p>
+    <div className="rc-landing relative flex min-h-screen items-center justify-center overflow-hidden bg-app px-4 py-10 font-dmsans">
+      <div className="rc-hero-bg absolute inset-0 z-0" />
+      <div className="rc-grid absolute inset-0 z-0" />
+
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <Link href="/" className="inline-block font-bebas text-4xl tracking-[2px] sm:text-5xl">
+            <span className="text-primary">RACKET</span>
+            <span className="text-text">CLUB</span>
+          </Link>
+          <p className="mt-2 text-sm text-muted">Créez votre compte gratuit</p>
         </div>
 
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="bg-surface border border-subtle rounded-xl p-6 space-y-4"
+          className="space-y-4 rounded-2xl border border-subtle bg-surface/80 p-6 shadow-2xl backdrop-blur-xl"
         >
           <div>
-            <label htmlFor="name" className="block text-sm text-white mb-1.5">
+            <label htmlFor="name" className="mb-1.5 block text-sm text-text">
               Prénom / Pseudo
             </label>
             <input
@@ -91,16 +95,16 @@ export default function RegisterPage() {
               type="text"
               autoComplete="name"
               {...register('name')}
-              className="w-full bg-surface-alt border border-subtle rounded-md px-3 py-2.5 text-white text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+              className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2.5 text-sm text-text transition placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
               placeholder="Alex Dupont"
             />
             {errors.name && (
-              <p className="text-danger text-xs mt-1">{errors.name.message}</p>
+              <p className="mt-1 text-xs text-danger">{errors.name.message}</p>
             )}
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm text-white mb-1.5">
+            <label htmlFor="email" className="mb-1.5 block text-sm text-text">
               Email
             </label>
             <input
@@ -108,16 +112,16 @@ export default function RegisterPage() {
               type="email"
               autoComplete="email"
               {...register('email')}
-              className="w-full bg-surface-alt border border-subtle rounded-md px-3 py-2.5 text-white text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+              className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2.5 text-sm text-text transition placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
               placeholder="vous@exemple.fr"
             />
             {errors.email && (
-              <p className="text-danger text-xs mt-1">{errors.email.message}</p>
+              <p className="mt-1 text-xs text-danger">{errors.email.message}</p>
             )}
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm text-white mb-1.5">
+            <label htmlFor="password" className="mb-1.5 block text-sm text-text">
               Mot de passe
             </label>
             <input
@@ -125,27 +129,27 @@ export default function RegisterPage() {
               type="password"
               autoComplete="new-password"
               {...register('password')}
-              className="w-full bg-surface-alt border border-subtle rounded-md px-3 py-2.5 text-white text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+              className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2.5 text-sm text-text transition placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
               placeholder="Minimum 8 caractères"
             />
             {errors.password && (
-              <p className="text-danger text-xs mt-1">{errors.password.message}</p>
+              <p className="mt-1 text-xs text-danger">{errors.password.message}</p>
             )}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-primary text-app font-bold py-2.5 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="btn-primary flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Créer mon compte
           </button>
         </form>
 
-        <p className="text-center text-muted text-sm mt-6">
+        <p className="mt-6 text-center text-sm text-muted">
           Déjà un compte ?{' '}
-          <Link href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="font-semibold text-primary hover:underline">
             Se connecter
           </Link>
         </p>
