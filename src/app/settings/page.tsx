@@ -1,10 +1,14 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Users } from 'lucide-react'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { MembersManager, type MemberRow } from '@/components/settings/MembersManager'
 import { ClubManager, type ClubData, type ClubMemberRow } from '@/components/settings/ClubManager'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { deriveDisplayName } from '@/lib/member-display'
+
+type JoinedClub = { id: string; name: string; full_name: string | null; city: string | null; sport: string }
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +60,27 @@ export default async function SettingsPage() {
     }
   }
 
+  // Clubs rejoints (uniquement pertinent si l'utilisateur ne possède pas de club).
+  const joinedClubs: JoinedClub[] = []
+  if (!club) {
+    const { data: memberships } = await admin
+      .from('club_members')
+      .select('clubs(id, name, full_name, city, sport, is_active)')
+      .eq('user_id', user.id)
+      .order('joined_at', { ascending: true }) as {
+        data: { clubs: (JoinedClub & { is_active: boolean }) | null }[] | null
+      }
+    const seen = new Set<string>()
+    for (const m of memberships ?? []) {
+      const c = m.clubs
+      if (c && c.is_active && !seen.has(c.id)) {
+        seen.add(c.id)
+        joinedClubs.push({ id: c.id, name: c.name, full_name: c.full_name, city: c.city, sport: c.sport })
+      }
+    }
+  }
+  const isMemberOnly = !club && joinedClubs.length > 0
+
   // Membres de l'organisation (système de partage existant — coexiste avec les clubs).
   const { data: membersRaw, error } = await supabase
     .from('organization_members')
@@ -77,13 +102,49 @@ export default async function SettingsPage() {
           <p className="mt-1 text-sm text-muted">Gérez votre club et les membres de votre organisation</p>
         </div>
 
+        {isMemberOnly && (
+          <section className="relative overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
+            <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
+            <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Mes clubs</h2>
+            <p className="mb-5 text-sm text-muted">Les clubs que vous avez rejoints.</p>
+            <ul className="flex flex-col gap-2.5">
+              {joinedClubs.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-subtle bg-surface-alt px-4 py-3"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-xl">🏢</div>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-text">{c.name}</p>
+                      <p className="truncate text-xs text-muted">
+                        {[c.full_name, c.city].filter(Boolean).join(' · ') || <span className="capitalize">{c.sport}</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/club/membres"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-subtle px-3 py-1.5 text-sm font-semibold text-text transition-colors hover:border-primary hover:text-primary"
+                  >
+                    <Users className="h-4 w-4" /> Voir les membres →
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section className="relative overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
           <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
-          <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Mon Club</h2>
+          <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">
+            {club ? 'Mon Club' : isMemberOnly ? 'Créer votre propre club' : 'Mon Club'}
+          </h2>
           <p className="mb-5 text-sm text-muted">
             {club
               ? 'Partagez le code ou le lien pour que vos adhérents rejoignent le club.'
-              : 'Créez votre club pour inviter vos adhérents et organiser vos tournois.'}
+              : isMemberOnly
+                ? 'Vous pouvez aussi lancer votre propre club, en plus de ceux que vous avez rejoints.'
+                : 'Créez votre club pour inviter vos adhérents et organiser vos tournois.'}
           </p>
           <ClubManager club={club} members={clubMembers} />
         </section>

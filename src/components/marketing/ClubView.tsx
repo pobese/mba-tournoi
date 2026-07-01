@@ -26,6 +26,7 @@ export function ClubView() {
   const [loading, setLoading] = useState(true)
   const [club, setClub] = useState<ClubOverview | null>(null)
   const [role, setRole] = useState<ClubRole | null>(null)
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   const [memberCount, setMemberCount] = useState(0)
   const [tournaments, setTournaments] = useState<ClubTournament[]>([])
   const [kpis, setKpis] = useState({ tournamentsMonth: 0, matches: 0, courts: CLUB_DEFAULT_COURTS })
@@ -34,6 +35,7 @@ export function ClubView() {
     const res = await getClubOverview()
     setClub(res.club)
     setRole(res.role)
+    setIsPlatformAdmin(res.isPlatformAdmin)
     setMemberCount(res.memberCount)
     setTournaments(res.tournaments)
     setKpis(res.kpis)
@@ -59,7 +61,7 @@ export function ClubView() {
   // Ni owner ni membre → inviter à rejoindre un club (pas « Créez votre club »).
   if (!club) return <JoinClub onJoined={load} />
 
-  const canManage = role !== null && MANAGER_ROLES.includes(role)
+  const canManage = isPlatformAdmin || (role !== null && MANAGER_ROLES.includes(role))
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 pb-16 pt-24 sm:px-8 lg:px-12">

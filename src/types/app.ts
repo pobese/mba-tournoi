@@ -91,6 +91,8 @@ export interface ClubOverviewResult {
   club: ClubOverview | null
   /** Rôle de l'utilisateur courant dans ce club, ou null s'il n'appartient à aucun club. */
   role: ClubRole | null
+  /** Admin plateforme : gestion possible de n'importe quel club. */
+  isPlatformAdmin: boolean
   memberCount: number
   tournaments: Array<{ id: string; name: string; type: string; status: string }>
   kpis: { tournamentsMonth: number; matches: number; courts: number }

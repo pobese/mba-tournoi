@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronDown, Settings, LogOut } from 'lucide-react'
+import { ChevronDown, Settings, LogOut, Zap } from 'lucide-react'
 import { createBrowserSupabaseClient } from '@/lib/supabase/client'
+import { deriveDisplayName } from '@/lib/member-display'
+import { amIPlatformAdmin } from '@/app/settings/club-actions'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
@@ -21,38 +23,32 @@ interface MarketingNavProps {
   active?: MarketingView
 }
 
-/** Nom affiché — jamais l'email : full_name/display_name/name, sinon partie locale de l'email. */
-function displayNameFromUser(user: { email?: string | null; user_metadata?: Record<string, unknown> } | null | undefined): string {
-  const meta = user?.user_metadata ?? {}
-  const name = [meta.full_name, meta.display_name, meta.name].find(
-    (v): v is string => typeof v === 'string' && v.trim().length > 0,
-  )
-  if (name) return name.trim()
-  const local = (user?.email ?? '').split('@')[0]?.trim()
-  if (local) return local.charAt(0).toUpperCase() + local.slice(1)
-  return 'Compte'
-}
+const nameFromSession = (user: { email?: string | null; user_metadata?: Record<string, unknown> }) =>
+  deriveDisplayName(user.user_metadata, user.email)
 
 export function MarketingNav({ active }: MarketingNavProps) {
   // getSession() lit le stockage local (pas d'appel réseau) ; onAuthStateChange
   // garde la navbar à jour en live.
   const [authed, setAuthed] = useState(false)
   const [displayName, setDisplayName] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient()
     let mounted = true
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setAuthed(Boolean(data.session))
-      setDisplayName(data.session ? displayNameFromUser(data.session.user) : null)
-    })
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const sync = (session: { user: { email?: string | null; user_metadata?: Record<string, unknown> } } | null) => {
       setAuthed(Boolean(session))
-      setDisplayName(session ? displayNameFromUser(session.user) : null)
-    })
+      setDisplayName(session ? nameFromSession(session.user) : null)
+      if (session) {
+        amIPlatformAdmin().then((v) => { if (mounted) setIsAdmin(v) })
+      } else {
+        setIsAdmin(false)
+      }
+    }
+
+    supabase.auth.getSession().then(({ data }) => { if (mounted) sync(data.session) })
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => sync(session))
 
     return () => {
       mounted = false
@@ -98,7 +94,16 @@ export function MarketingNav({ active }: MarketingNavProps) {
               <ChevronDown className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border-subtle bg-surface">
-              {displayName && <DropdownMenuLabel className="max-w-[14rem] truncate text-muted">{displayName}</DropdownMenuLabel>}
+              {displayName && (
+                <DropdownMenuLabel className="max-w-[14rem] truncate text-muted">
+                  {displayName}
+                  {isAdmin && (
+                    <span className="mt-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-accent">
+                      <Zap className="h-3 w-3" /> Admin RacketClub
+                    </span>
+                  )}
+                </DropdownMenuLabel>
+              )}
               <DropdownMenuSeparator className="bg-subtle" />
               <DropdownMenuItem asChild className="text-text focus:bg-surface-alt focus:text-primary">
                 <Link href="/settings"><Settings className="mr-2 h-4 w-4" /> Paramètres</Link>

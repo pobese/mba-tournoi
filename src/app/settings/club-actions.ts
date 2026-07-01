@@ -24,6 +24,7 @@ import {
   MATCH_STATUS,
 } from '@/lib/constants'
 import type { ClubOverview, ClubOverviewResult } from '@/types/app'
+import { isPlatformAdmin } from '@/lib/platform-admin'
 
 type SupabaseError = { code: string; message: string; hint: string | null } | null
 type ClubRole = 'admin' | 'member'
@@ -73,7 +74,7 @@ async function generateUniqueSlug(admin: SupabaseClient, name: string): Promise<
   return `${base}-${randomUUID().slice(0, 6)}`
 }
 
-/** owner du club OU membre avec rôle admin. */
+/** owner du club, membre avec rôle admin, OU admin plateforme. */
 async function isClubAdmin(admin: SupabaseClient, clubId: string, userId: string): Promise<boolean> {
   const { data: club } = await admin.from('clubs').select('owner_id').eq('id', clubId).maybeSingle() as {
     data: { owner_id: string } | null
@@ -85,7 +86,9 @@ async function isClubAdmin(admin: SupabaseClient, clubId: string, userId: string
     .eq('club_id', clubId)
     .eq('user_id', userId)
     .maybeSingle() as { data: { role: string } | null }
-  return mem?.role === CLUB_ROLES.ADMIN
+  if (mem?.role === CLUB_ROLES.ADMIN) return true
+  // Les admins plateforme peuvent gérer n'importe quel club.
+  return isPlatformAdmin(userId)
 }
 
 // ─── createClub ──────────────────────────────────────────────────────────────
@@ -463,6 +466,7 @@ export async function removeClubMember(memberId: string) {
 const EMPTY_OVERVIEW: ClubOverviewResult = {
   club: null,
   role: null,
+  isPlatformAdmin: false,
   memberCount: 0,
   tournaments: [],
   kpis: { tournamentsMonth: 0, matches: 0, courts: CLUB_DEFAULT_COURTS },
@@ -480,6 +484,7 @@ export async function getClubOverview(): Promise<ClubOverviewResult> {
   if (!user) return EMPTY_OVERVIEW
 
   const admin = createServiceRoleClient()
+  const platformAdmin = await isPlatformAdmin(user.id)
 
   // 1) Club possédé.
   const { data: owned } = await admin
@@ -514,7 +519,7 @@ export async function getClubOverview(): Promise<ClubOverviewResult> {
     }
   }
 
-  if (!club) return EMPTY_OVERVIEW
+  if (!club) return { ...EMPTY_OVERVIEW, isPlatformAdmin: platformAdmin }
 
   // Comptage des membres : owner (via owner_id) + adhérents, sans double comptage.
   const { data: memberRows } = await admin
@@ -557,5 +562,18 @@ export async function getClubOverview(): Promise<ClubOverviewResult> {
   const clubPublic: ClubOverview = {
     id: club.id, name: club.name, full_name: club.full_name, city: club.city, sport: club.sport,
   }
-  return { club: clubPublic, role, memberCount, tournaments, kpis: { tournamentsMonth, matches, courts } }
+  return {
+    club: clubPublic, role, isPlatformAdmin: platformAdmin, memberCount, tournaments,
+    kpis: { tournamentsMonth, matches, courts },
+  }
+}
+
+// ─── amIPlatformAdmin (badge navbar) ───────────────────────────────────────────
+
+/** Statut admin plateforme de l'utilisateur courant — pour l'affichage du badge navbar. */
+export async function amIPlatformAdmin(): Promise<boolean> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+  return isPlatformAdmin(user.id)
 }

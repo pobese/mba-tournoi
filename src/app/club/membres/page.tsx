@@ -54,9 +54,19 @@ export default async function ClubMembersPage() {
         data: { id: string; user_id: string; role: ClubMemberFullRow['role']; joined_at: string }[] | null
       }
 
+    // Dédoublonnage par user_id : sans contrainte UNIQUE en prod, un même compte peut
+    // avoir plusieurs lignes (backfill + invitation manuelle) → on garde la plus privilégiée.
+    const ROLE_PRIORITY: Record<ClubMemberFullRow['role'], number> = { owner: 3, admin: 2, editor: 1, member: 0 }
+    const byUser = new Map<string, { id: string; user_id: string; role: ClubMemberFullRow['role']; joined_at: string }>()
+    for (const r of rows ?? []) {
+      const prev = byUser.get(r.user_id)
+      if (!prev || ROLE_PRIORITY[r.role] > ROLE_PRIORITY[prev.role]) byUser.set(r.user_id, r)
+    }
+    const uniqueRows = [...byUser.values()]
+
     // Résolution des comptes — on ne garde que le nom affiché, jamais l'email côté client.
     const resolved = await Promise.all(
-      (rows ?? []).map(async (r) => {
+      uniqueRows.map(async (r) => {
         const { data } = await admin.auth.admin.getUserById(r.user_id)
         return { row: r, account: data.user }
       }),
@@ -65,14 +75,18 @@ export default async function ClubMembersPage() {
     const nameFor = (account: { email?: string | null; user_metadata?: Record<string, unknown> } | null) =>
       deriveDisplayName(account?.user_metadata, account?.email)
 
-    members = resolved.map(({ row, account }) => ({
-      id: row.id,
-      displayName: nameFor(account),
-      role: row.role,
-      isOwner: row.user_id === club!.owner_id,
-      isSelf: row.user_id === user.id,
-      joinedAt: row.joined_at,
-    }))
+    members = resolved.map(({ row, account }) => {
+      const isOwner = row.user_id === club!.owner_id
+      return {
+        id: row.id,
+        displayName: nameFor(account),
+        // L'owner apparaît toujours comme propriétaire (jamais aussi en simple adhérent).
+        role: isOwner ? ('owner' as const) : row.role,
+        isOwner,
+        isSelf: row.user_id === user.id,
+        joinedAt: row.joined_at,
+      }
+    })
 
     // L'owner n'est pas toujours une ligne club_members → on l'affiche explicitement.
     if (!members.some((m) => m.isOwner)) {
