@@ -308,6 +308,7 @@ export type LoginInput = z.infer<typeof LoginSchema>
 export const RegisterSchema = z.object({
   email: z.string().email('Email invalide'),
   password: z.string().min(8, 'Minimum 8 caractères'),
-  name: z.string().min(PLAYER_NAME_MIN).max(PLAYER_NAME_MAX),
+  firstName: z.string().min(PLAYER_NAME_MIN, 'Prénom trop court').max(PLAYER_NAME_MAX),
+  lastName: z.string().max(PLAYER_NAME_MAX).optional(),
 })
 export type RegisterInput = z.infer<typeof RegisterSchema>

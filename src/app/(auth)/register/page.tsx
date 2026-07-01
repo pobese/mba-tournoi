@@ -31,12 +31,13 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       const redirectTo = safeRedirect()
+      const fullName = [data.firstName.trim(), data.lastName?.trim()].filter(Boolean).join(' ')
       const supabase = createBrowserSupabaseClient()
       const { data: signUpData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
-          data: { full_name: data.name },
+          data: { full_name: fullName },
           // Après confirmation d'email → callback qui ramène vers la destination.
           emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
         },
@@ -86,21 +87,40 @@ export default function RegisterPage() {
           onSubmit={handleSubmit(onSubmit)}
           className="space-y-4 rounded-2xl border border-subtle bg-surface/80 p-6 shadow-2xl backdrop-blur-xl"
         >
-          <div>
-            <label htmlFor="name" className="mb-1.5 block text-sm text-text">
-              Prénom / Pseudo
-            </label>
-            <input
-              id="name"
-              type="text"
-              autoComplete="name"
-              {...register('name')}
-              className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2.5 text-sm text-text transition placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
-              placeholder="Alex Dupont"
-            />
-            {errors.name && (
-              <p className="mt-1 text-xs text-danger">{errors.name.message}</p>
-            )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="firstName" className="mb-1.5 block text-sm text-text">
+                Prénom
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                autoComplete="given-name"
+                {...register('firstName')}
+                className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2.5 text-sm text-text transition placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="Alex"
+              />
+              {errors.firstName && (
+                <p className="mt-1 text-xs text-danger">{errors.firstName.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="lastName" className="mb-1.5 block text-sm text-text">
+                Nom <span className="text-muted">(optionnel)</span>
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                autoComplete="family-name"
+                {...register('lastName')}
+                className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2.5 text-sm text-text transition placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="Dupont"
+              />
+              {errors.lastName && (
+                <p className="mt-1 text-xs text-danger">{errors.lastName.message}</p>
+              )}
+            </div>
           </div>
 
           <div>

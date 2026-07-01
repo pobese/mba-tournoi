@@ -4,7 +4,7 @@ import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { MembersManager, type MemberRow } from '@/components/settings/MembersManager'
 import { ClubManager, type ClubData, type ClubMemberRow } from '@/components/settings/ClubManager'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { deriveDisplayName, playerNamesByEmail } from '@/lib/member-display'
+import { deriveDisplayName } from '@/lib/member-display'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,14 +41,8 @@ export default async function SettingsPage() {
         return { row: r, account: data.user }
       }),
     )
-    const playerMap = await playerNamesByEmail(admin, [
-      ...resolved.map((x) => x.account?.email),
-      user.email,
-    ])
-    const nameFor = (account: { email?: string | null; user_metadata?: Record<string, unknown> } | null) => {
-      const email = account?.email ?? undefined
-      return deriveDisplayName(account?.user_metadata, email, email ? playerMap.get(email) : undefined)
-    }
+    const nameFor = (account: { email?: string | null; user_metadata?: Record<string, unknown> } | null) =>
+      deriveDisplayName(account?.user_metadata, account?.email)
 
     clubMembers = resolved.map(({ row, account }) => ({
       id: row.id,

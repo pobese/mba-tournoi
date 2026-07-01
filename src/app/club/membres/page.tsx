@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { ClubMembersManager, type ClubMemberFullRow } from '@/components/club/ClubMembersManager'
-import { deriveDisplayName, playerNamesByEmail } from '@/lib/member-display'
+import { deriveDisplayName } from '@/lib/member-display'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,13 +62,8 @@ export default async function ClubMembersPage() {
       }),
     )
 
-    // Profils joueurs liés (même email) → fallback de nom, en une seule requête.
-    const playerByEmail = await playerNamesByEmail(admin, resolved.map((x) => x.account?.email))
-
-    const nameFor = (account: { email?: string | null; user_metadata?: Record<string, unknown> } | null) => {
-      const email = account?.email ?? undefined
-      return deriveDisplayName(account?.user_metadata, email, email ? playerByEmail.get(email) : undefined)
-    }
+    const nameFor = (account: { email?: string | null; user_metadata?: Record<string, unknown> } | null) =>
+      deriveDisplayName(account?.user_metadata, account?.email)
 
     members = resolved.map(({ row, account }) => ({
       id: row.id,
