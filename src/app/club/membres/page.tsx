@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { ClubMembersManager, type ClubMemberFullRow } from '@/components/club/ClubMembersManager'
@@ -114,6 +115,13 @@ export default async function ClubMembersPage() {
       <MarketingNav />
 
       <div className="mx-auto max-w-4xl px-4 pb-16 pt-24 sm:px-8">
+        <Link
+          href="/?view=club"
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" /> Retour
+        </Link>
+
         <div className="mb-6">
           <h1 className="font-bebas text-4xl tracking-[2px] text-text sm:text-5xl">MEMBRES DU CLUB</h1>
           <p className="mt-1 text-sm text-muted">
@@ -129,12 +137,14 @@ export default async function ClubMembersPage() {
         ) : (
           <>
             <ClubMembersManager members={members} canManage={canManage} />
-            <p className="mt-8 text-xs text-muted">
-              Pour inviter de nouveaux membres ou gérer le code d&apos;invitation,{' '}
-              <Link href="/settings#membres" className="font-semibold text-primary hover:underline">
-                rendez-vous dans les Paramètres →
-              </Link>
-            </p>
+            {canManage && (
+              <p className="mt-8 text-xs text-muted">
+                Pour inviter de nouveaux membres ou gérer le code d&apos;invitation,{' '}
+                <Link href="/settings#membres" className="font-semibold text-primary hover:underline">
+                  rendez-vous dans les Paramètres →
+                </Link>
+              </p>
+            )}
           </>
         )}
       </div>
