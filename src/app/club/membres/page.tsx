@@ -4,6 +4,7 @@ import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supab
 import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { ClubMembersManager, type ClubMemberFullRow } from '@/components/club/ClubMembersManager'
 import { deriveDisplayName } from '@/lib/member-display'
+import { isPlatformAdmin } from '@/lib/platform-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -102,8 +103,11 @@ export default async function ClubMembersPage() {
     }
   }
 
+  // Gestion (select de rôle + suppression) réservée au bureau : owner / admin / editor,
+  // ou admin plateforme. Un adhérent simple ('member') voit la liste en lecture seule.
   const currentRole = members.find((m) => m.isSelf)?.role
-  const canManage = Boolean(club && (club.owner_id === user.id || currentRole === 'admin'))
+  const isBureau = currentRole === 'admin' || currentRole === 'editor'
+  const canManage = Boolean(club) && (club?.owner_id === user.id || isBureau || (await isPlatformAdmin(user.id)))
 
   return (
     <main className="min-h-screen bg-app font-dmsans text-text">

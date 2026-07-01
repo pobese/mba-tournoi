@@ -3,12 +3,12 @@ import { redirect } from 'next/navigation'
 import { Users } from 'lucide-react'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { MarketingNav } from '@/components/marketing/MarketingNav'
-import { MembersManager, type MemberRow } from '@/components/settings/MembersManager'
 import { ClubManager, type ClubData, type ClubMemberRow } from '@/components/settings/ClubManager'
-import { ThemeToggle } from '@/components/ThemeToggle'
 import { deriveDisplayName } from '@/lib/member-display'
+import { isPlatformAdmin } from '@/lib/platform-admin'
 
 type JoinedClub = { id: string; name: string; full_name: string | null; city: string | null; sport: string }
+type Membership = { role: 'owner' | 'admin' | 'editor' | 'member'; clubs: (JoinedClub & { is_active: boolean }) | null }
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +18,7 @@ export default async function SettingsPage() {
   if (!user) redirect('/login')
 
   const admin = createServiceRoleClient()
+  const platformAdmin = await isPlatformAdmin(user.id)
 
   // Club dont l'utilisateur est propriétaire (le « Mon Club » qu'il gère).
   const { data: club } = await admin
@@ -27,6 +28,21 @@ export default async function SettingsPage() {
     .eq('is_active', true)
     .limit(1)
     .maybeSingle() as { data: ClubData | null }
+
+  // Rôles de l'utilisateur dans les clubs qu'il a rejoints.
+  const { data: memberships } = await admin
+    .from('club_members')
+    .select('role, clubs(id, name, full_name, city, sport, is_active)')
+    .eq('user_id', user.id)
+    .order('joined_at', { ascending: true }) as { data: Membership[] | null }
+  const mems = memberships ?? []
+
+  // Accès /settings réservé au bureau : owner d'un club, admin/editor d'un club, ou
+  // admin plateforme. Un adhérent simple (uniquement 'member') → renvoyé au tab Club.
+  const isBureauElsewhere = mems.some((m) => m.role === 'admin' || m.role === 'editor')
+  if (!club && !platformAdmin && !isBureauElsewhere && mems.length > 0) {
+    redirect('/?view=club')
+  }
 
   let clubMembers: ClubMemberRow[] = []
   if (club) {
@@ -60,18 +76,11 @@ export default async function SettingsPage() {
     }
   }
 
-  // Clubs rejoints (uniquement pertinent si l'utilisateur ne possède pas de club).
+  // Clubs rejoints (bureau non-owner) — affichés en premier avant la création.
   const joinedClubs: JoinedClub[] = []
   if (!club) {
-    const { data: memberships } = await admin
-      .from('club_members')
-      .select('clubs(id, name, full_name, city, sport, is_active)')
-      .eq('user_id', user.id)
-      .order('joined_at', { ascending: true }) as {
-        data: { clubs: (JoinedClub & { is_active: boolean }) | null }[] | null
-      }
     const seen = new Set<string>()
-    for (const m of memberships ?? []) {
+    for (const m of mems) {
       const c = m.clubs
       if (c && c.is_active && !seen.has(c.id)) {
         seen.add(c.id)
@@ -81,17 +90,6 @@ export default async function SettingsPage() {
   }
   const isMemberOnly = !club && joinedClubs.length > 0
 
-  // Membres de l'organisation (système de partage existant — coexiste avec les clubs).
-  const { data: membersRaw, error } = await supabase
-    .from('organization_members')
-    .select('id, member_email, role, status')
-    .eq('owner_id', user.id)
-    .order('invited_at', { ascending: true }) as {
-      data: MemberRow[] | null
-      error: { code: string; message: string; hint: string | null } | null
-    }
-  if (error) console.error('SettingsPage members:', error.code, error.message, error.hint)
-
   return (
     <main className="min-h-screen bg-app font-dmsans text-text">
       <MarketingNav />
@@ -99,7 +97,7 @@ export default async function SettingsPage() {
       <div className="mx-auto max-w-3xl space-y-6 px-4 pb-16 pt-24 sm:px-8">
         <div>
           <h1 className="font-bebas text-4xl tracking-[2px] text-text sm:text-5xl">PARAMÈTRES</h1>
-          <p className="mt-1 text-sm text-muted">Gérez votre club et les membres de votre organisation</p>
+          <p className="mt-1 text-sm text-muted">Gérez votre club et ses adhérents</p>
         </div>
 
         {isMemberOnly && (
@@ -134,7 +132,7 @@ export default async function SettingsPage() {
           </section>
         )}
 
-        <section className="relative overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
+        <section id="membres" className="relative scroll-mt-24 overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
           <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
           <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">
             {club ? 'Mon Club' : isMemberOnly ? 'Créer votre propre club' : 'Mon Club'}
@@ -147,27 +145,6 @@ export default async function SettingsPage() {
                 : 'Créez votre club pour inviter vos adhérents et organiser vos tournois.'}
           </p>
           <ClubManager club={club} members={clubMembers} />
-        </section>
-
-        <section id="membres" className="relative scroll-mt-24 overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
-          <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
-          <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Membres de l&apos;organisation</h2>
-          <p className="mb-5 text-sm text-muted">
-            Invitez des membres pour partager la gestion de vos tournois. Un <strong className="text-text">admin</strong> peut
-            aussi créer des tournois ; un <strong className="text-text">éditeur</strong> gère uniquement les tournois existants.
-          </p>
-          <MembersManager
-            ownerId={user.id}
-            ownerEmail={user.email ?? '—'}
-            members={membersRaw ?? []}
-          />
-        </section>
-
-        <section className="relative overflow-hidden rounded-xl border border-subtle bg-surface p-5 sm:p-6">
-          <span className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
-          <h2 className="mb-1 font-bebas text-2xl tracking-wide text-text">Apparence</h2>
-          <p className="mb-5 text-sm text-muted">Choisissez le thème de l&apos;interface.</p>
-          <ThemeToggle variant="cards" />
         </section>
       </div>
     </main>

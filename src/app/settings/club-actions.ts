@@ -91,6 +91,22 @@ async function isClubAdmin(admin: SupabaseClient, clubId: string, userId: string
   return isPlatformAdmin(userId)
 }
 
+/** Bureau du club : owner, admin, editor, OU admin plateforme (gestion des adhérents). */
+async function isClubBureau(admin: SupabaseClient, clubId: string, userId: string): Promise<boolean> {
+  const { data: club } = await admin.from('clubs').select('owner_id').eq('id', clubId).maybeSingle() as {
+    data: { owner_id: string } | null
+  }
+  if (club?.owner_id === userId) return true
+  const { data: mem } = await admin
+    .from('club_members')
+    .select('role')
+    .eq('club_id', clubId)
+    .eq('user_id', userId)
+    .maybeSingle() as { data: { role: string } | null }
+  if (mem?.role === 'admin' || mem?.role === 'editor') return true
+  return isPlatformAdmin(userId)
+}
+
 // ─── createClub ──────────────────────────────────────────────────────────────
 
 /**
@@ -404,7 +420,7 @@ export async function regenerateInviteToken(clubId: string) {
 
 // ─── Gestion des membres du club (page /club/membres) ──────────────────────────
 
-/** Change le rôle d'un membre du club. Réservé owner/admin ; l'owner reste intouchable. */
+/** Change le rôle d'un membre du club. Réservé au bureau ; l'owner reste intouchable. */
 export async function updateClubMemberRole(memberId: string, role: 'admin' | 'editor' | 'member') {
   const parsed = UpdateClubMemberRoleSchema.safeParse({ memberId, role })
   if (!parsed.success) return { error: 'Données invalides' }
@@ -420,7 +436,7 @@ export async function updateClubMemberRole(memberId: string, role: 'admin' | 'ed
     }
   if (!row) return { error: 'Membre introuvable' }
   if (row.role === 'owner') return { error: 'Le propriétaire ne peut pas être modifié.' }
-  if (!(await isClubAdmin(admin, row.club_id, user.id))) return { error: 'Permission refusée' }
+  if (!(await isClubBureau(admin, row.club_id, user.id))) return { error: 'Permission refusée' }
 
   const { error } = await admin
     .from('club_members').update({ role: parsed.data.role }).eq('id', parsed.data.memberId)
@@ -433,7 +449,7 @@ export async function updateClubMemberRole(memberId: string, role: 'admin' | 'ed
   return { success: true as const }
 }
 
-/** Retire un membre du club. Réservé owner/admin ; l'owner ne peut être retiré. */
+/** Retire un membre du club. Réservé au bureau ; l'owner ne peut être retiré. */
 export async function removeClubMember(memberId: string) {
   const parsed = ClubMemberIdSchema.safeParse({ memberId })
   if (!parsed.success) return { error: 'Identifiant invalide' }
@@ -449,7 +465,7 @@ export async function removeClubMember(memberId: string) {
     }
   if (!row) return { error: 'Membre introuvable' }
   if (row.role === 'owner') return { error: 'Le propriétaire ne peut pas être retiré.' }
-  if (!(await isClubAdmin(admin, row.club_id, user.id))) return { error: 'Permission refusée' }
+  if (!(await isClubBureau(admin, row.club_id, user.id))) return { error: 'Permission refusée' }
 
   const { error } = await admin.from('club_members').delete().eq('id', parsed.data.memberId)
   if (error) {
