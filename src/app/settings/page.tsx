@@ -4,6 +4,7 @@ import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { MembersManager, type MemberRow } from '@/components/settings/MembersManager'
 import { ClubManager, type ClubData, type ClubMemberRow } from '@/components/settings/ClubManager'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { deriveDisplayName, playerNamesByEmail } from '@/lib/member-display'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,20 +33,32 @@ export default async function SettingsPage() {
       .order('joined_at', { ascending: true }) as {
         data: { id: string; user_id: string; role: 'owner' | 'admin' | 'editor' | 'member' }[] | null
       }
-    clubMembers = await Promise.all(
+
+    // Résolution des comptes → nom affiché uniquement (jamais l'email dans la liste).
+    const resolved = await Promise.all(
       (rows ?? []).map(async (r) => {
         const { data } = await admin.auth.admin.getUserById(r.user_id)
-        return {
-          id: r.id,
-          email: data.user?.email ?? '—',
-          role: r.role,
-          isOwner: r.user_id === user.id,
-        }
+        return { row: r, account: data.user }
       }),
     )
+    const playerMap = await playerNamesByEmail(admin, [
+      ...resolved.map((x) => x.account?.email),
+      user.email,
+    ])
+    const nameFor = (account: { email?: string | null; user_metadata?: Record<string, unknown> } | null) => {
+      const email = account?.email ?? undefined
+      return deriveDisplayName(account?.user_metadata, email, email ? playerMap.get(email) : undefined)
+    }
+
+    clubMembers = resolved.map(({ row, account }) => ({
+      id: row.id,
+      displayName: nameFor(account),
+      role: row.role,
+      isOwner: row.user_id === user.id,
+    }))
     // L'owner n'est pas stocké dans club_members → on l'affiche explicitement.
     if (!clubMembers.some((m) => m.isOwner)) {
-      clubMembers.unshift({ id: '__owner__', email: user.email ?? '—', role: 'owner', isOwner: true })
+      clubMembers.unshift({ id: '__owner__', displayName: nameFor(user), role: 'owner', isOwner: true })
     }
   }
 

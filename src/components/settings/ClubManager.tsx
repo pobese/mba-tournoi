@@ -32,7 +32,8 @@ export interface ClubData {
 
 export interface ClubMemberRow {
   id: string
-  email: string
+  /** Nom affiché — jamais l'email (confidentialité : réservé au champ d'invitation). */
+  displayName: string
   role: 'owner' | 'admin' | 'editor' | 'member'
   isOwner: boolean
 }
@@ -368,8 +369,8 @@ function ClubMembers({ clubId, members }: { clubId: string; members: ClubMemberR
             <div className="flex min-w-0 items-center gap-2">
               {m.isOwner
                 ? <Crown className="h-4 w-4 shrink-0 text-accent" />
-                : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-surface-alt text-[10px] font-bold text-muted">{m.email[0]?.toUpperCase()}</span>}
-              <span className="truncate text-sm text-white">{m.email}</span>
+                : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-surface-alt text-[10px] font-bold text-muted">{m.displayName[0]?.toUpperCase()}</span>}
+              <span className="truncate text-sm text-white">{m.displayName}</span>
             </div>
             <span className="shrink-0 rounded-full border border-subtle bg-surface-alt px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-muted">
               {m.isOwner ? 'Propriétaire' : ROLE_LABELS[m.role]}

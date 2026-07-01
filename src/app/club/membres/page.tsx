@@ -3,30 +3,11 @@ import { redirect } from 'next/navigation'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { ClubMembersManager, type ClubMemberFullRow } from '@/components/club/ClubMembersManager'
+import { deriveDisplayName, playerNamesByEmail } from '@/lib/member-display'
 
 export const dynamic = 'force-dynamic'
 
 type ClubRow = { id: string; name: string; owner_id: string; created_at: string }
-
-/**
- * Nom affiché d'un membre — JAMAIS son email (la page est visible par tout adhérent).
- * Priorité : full_name/display_name du compte → nom d'un profil joueur lié (même email)
- * → partie locale de l'email, sans jamais exposer le domaine ni l'email complet.
- */
-function deriveDisplayName(
-  meta: Record<string, unknown> | undefined,
-  email: string | undefined,
-  playerName: string | undefined,
-): string {
-  const metaName = [meta?.full_name, meta?.display_name, meta?.name].find(
-    (v): v is string => typeof v === 'string' && v.trim().length > 0,
-  )
-  if (metaName) return metaName.trim()
-  if (playerName?.trim()) return playerName.trim()
-  const local = (email ?? '').split('@')[0]?.trim()
-  if (local) return local.charAt(0).toUpperCase() + local.slice(1)
-  return 'Membre'
-}
 
 export default async function ClubMembersPage() {
   const supabase = await createServerSupabaseClient()
@@ -82,19 +63,7 @@ export default async function ClubMembersPage() {
     )
 
     // Profils joueurs liés (même email) → fallback de nom, en une seule requête.
-    const emails = resolved
-      .map((x) => x.account?.email)
-      .filter((e): e is string => Boolean(e))
-    const playerByEmail = new Map<string, string>()
-    if (emails.length) {
-      const { data: players } = await admin
-        .from('players')
-        .select('name, email')
-        .in('email', emails) as { data: { name: string; email: string | null }[] | null }
-      for (const p of players ?? []) {
-        if (p.email && !playerByEmail.has(p.email)) playerByEmail.set(p.email, p.name)
-      }
-    }
+    const playerByEmail = await playerNamesByEmail(admin, resolved.map((x) => x.account?.email))
 
     const nameFor = (account: { email?: string | null; user_metadata?: Record<string, unknown> } | null) => {
       const email = account?.email ?? undefined

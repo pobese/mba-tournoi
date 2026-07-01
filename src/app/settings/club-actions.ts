@@ -18,9 +18,12 @@ import {
 import {
   CLUB_ROLES,
   CLUB_DEFAULT_SPORT,
+  CLUB_DEFAULT_COURTS,
   CLUB_INVITE_CODE_ALPHABET,
   CLUB_INVITE_CODE_LENGTH,
+  MATCH_STATUS,
 } from '@/lib/constants'
+import type { ClubOverview, ClubOverviewResult } from '@/types/app'
 
 type SupabaseError = { code: string; message: string; hint: string | null } | null
 type ClubRole = 'admin' | 'member'
@@ -453,4 +456,106 @@ export async function removeClubMember(memberId: string) {
 
   revalidatePath('/club/membres')
   return { success: true as const }
+}
+
+// ─── getClubOverview (tab Club de la landing) ──────────────────────────────────
+
+const EMPTY_OVERVIEW: ClubOverviewResult = {
+  club: null,
+  role: null,
+  memberCount: 0,
+  tournaments: [],
+  kpis: { tournamentsMonth: 0, matches: 0, courts: CLUB_DEFAULT_COURTS },
+}
+
+/**
+ * Vue d'ensemble du club de l'utilisateur pour le tab Club. Cherche d'abord le club
+ * qu'il possède, sinon le premier club qu'il a rejoint (fix : un membre voyait
+ * « Créez votre club » au lieu du club rejoint). Lecture via service-role pour ne pas
+ * dépendre du RLS côté client (mêmes données pour owner et membre).
+ */
+export async function getClubOverview(): Promise<ClubOverviewResult> {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return EMPTY_OVERVIEW
+
+  const admin = createServiceRoleClient()
+
+  // 1) Club possédé.
+  const { data: owned } = await admin
+    .from('clubs')
+    .select('id, name, full_name, city, sport, owner_id')
+    .eq('owner_id', user.id)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle() as { data: (ClubOverview & { owner_id: string }) | null }
+
+  let club: (ClubOverview & { owner_id: string }) | null = owned
+  let role: ClubOverviewResult['role'] = owned ? 'owner' : null
+
+  // 2) Sinon, premier club rejoint (membre accepté).
+  if (!club) {
+    const { data: membership } = await admin
+      .from('club_members')
+      .select('role, clubs(id, name, full_name, city, sport, owner_id, is_active)')
+      .eq('user_id', user.id)
+      .order('joined_at', { ascending: true })
+      .limit(1)
+      .maybeSingle() as {
+        data: {
+          role: ClubOverviewResult['role']
+          clubs: (ClubOverview & { owner_id: string; is_active: boolean }) | null
+        } | null
+      }
+    if (membership?.clubs && membership.clubs.is_active) {
+      const c = membership.clubs
+      club = { id: c.id, name: c.name, full_name: c.full_name, city: c.city, sport: c.sport, owner_id: c.owner_id }
+      role = membership.role
+    }
+  }
+
+  if (!club) return EMPTY_OVERVIEW
+
+  // Comptage des membres : owner (via owner_id) + adhérents, sans double comptage.
+  const { data: memberRows } = await admin
+    .from('club_members').select('user_id').eq('club_id', club.id) as { data: { user_id: string }[] | null }
+  const ids = new Set((memberRows ?? []).map((m) => m.user_id))
+  ids.add(club.owner_id)
+  const memberCount = ids.size
+
+  // Tournois du club (+ KPIs).
+  const { data: tourns } = await admin
+    .from('tournaments')
+    .select('id, name, type, status, config, created_at')
+    .eq('club_id', club.id)
+    .order('created_at', { ascending: false }) as {
+      data: Array<{
+        id: string; name: string; type: string; status: string
+        config: { courtsAvailable?: number } | null; created_at: string
+      }> | null
+    }
+  const rows = tourns ?? []
+  const tournaments = rows.map(({ id, name, type, status }) => ({ id, name, type, status }))
+
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  startOfMonth.setHours(0, 0, 0, 0)
+  const tournamentsMonth = rows.filter((t) => new Date(t.created_at) >= startOfMonth).length
+  const courts = rows.reduce((mx, t) => Math.max(mx, Number(t.config?.courtsAvailable ?? 0)), 0) || CLUB_DEFAULT_COURTS
+
+  let matches = 0
+  const tourIds = rows.map((t) => t.id)
+  if (tourIds.length) {
+    const { count } = await admin
+      .from('matches')
+      .select('id', { count: 'exact', head: true })
+      .in('tournament_id', tourIds)
+      .eq('status', MATCH_STATUS.DONE)
+    matches = count ?? 0
+  }
+
+  const clubPublic: ClubOverview = {
+    id: club.id, name: club.name, full_name: club.full_name, city: club.city, sport: club.sport,
+  }
+  return { club: clubPublic, role, memberCount, tournaments, kpis: { tournamentsMonth, matches, courts } }
 }

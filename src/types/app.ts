@@ -76,6 +76,26 @@ export interface TournamentWithDetails extends Tournament {
   rounds: RoundWithMatches[]
 }
 
+// ─── Club overview (tab Club de la landing) ──────────────────────────────────
+export type ClubRole = 'owner' | 'admin' | 'editor' | 'member'
+
+export interface ClubOverview {
+  id: string
+  name: string
+  full_name: string | null
+  city: string | null
+  sport: string
+}
+
+export interface ClubOverviewResult {
+  club: ClubOverview | null
+  /** Rôle de l'utilisateur courant dans ce club, ou null s'il n'appartient à aucun club. */
+  role: ClubRole | null
+  memberCount: number
+  tournaments: Array<{ id: string; name: string; type: string; status: string }>
+  kpis: { tournamentsMonth: number; matches: number; courts: number }
+}
+
 // ─── Algorithm types ──────────────────────────────────────────────────────────
 export interface PlayerStanding {
   playerId: string

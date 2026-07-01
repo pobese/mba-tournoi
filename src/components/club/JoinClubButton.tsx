@@ -22,7 +22,8 @@ export function JoinClubButton({ token, clubName }: { token: string; clubName: s
       toast.success(
         res.alreadyMember ? `Vous êtes déjà membre de ${res.clubName}` : `Bienvenue dans ${res.clubName} 🎉`,
       )
-      router.push('/dashboard')
+      // Un adhérent rejoint → on l'amène sur le tab Club (et non /dashboard, orienté gestion).
+      router.push('/?view=club')
       router.refresh()
     } finally {
       setLoading(false)
