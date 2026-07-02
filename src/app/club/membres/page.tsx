@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { MarketingNav } from '@/components/marketing/MarketingNav'
-import { ClubMembersManager, type ClubMemberFullRow } from '@/components/club/ClubMembersManager'
+import { ClubMembersManager, type ClubMemberFullRow, type ParticipantEntry } from '@/components/club/ClubMembersManager'
 import { deriveDisplayName } from '@/lib/member-display'
 import { isPlatformAdmin } from '@/lib/platform-admin'
 
@@ -47,7 +47,32 @@ export default async function ClubMembersPage() {
   }
 
   let members: ClubMemberFullRow[] = []
+  const participants: ParticipantEntry[] = []
+  const registeredUserIds = new Set<string>()
   if (club) {
+    // Joueurs ayant participé à un tournoi du club, séparés selon qu'ils ont
+    // déjà un compte lié (user_id) ou non.
+    const { data: clubTournaments } = await admin
+      .from('tournaments').select('id').eq('club_id', club.id) as { data: { id: string }[] | null }
+    const tournamentIds = (clubTournaments ?? []).map((t) => t.id)
+    if (tournamentIds.length > 0) {
+      const { data: tps } = await admin
+        .from('tournament_players')
+        .select('player:players(id, name, level, user_id)')
+        .in('tournament_id', tournamentIds) as {
+          data: { player: { id: string; name: string; level: number | null; user_id: string | null } | null }[] | null
+        }
+      const seen = new Set<string>()
+      for (const r of tps ?? []) {
+        const p = r.player
+        if (!p || seen.has(p.id)) continue
+        seen.add(p.id)
+        if (p.user_id) registeredUserIds.add(p.user_id)
+        else participants.push({ id: p.id, name: p.name, level: p.level })
+      }
+      participants.sort((a, b) => a.name.localeCompare(b.name))
+    }
+
     const { data: rows } = await admin
       .from('club_members')
       .select('id, user_id, role, joined_at')
@@ -87,6 +112,7 @@ export default async function ClubMembersPage() {
         isOwner,
         isSelf: row.user_id === user.id,
         joinedAt: row.joined_at,
+        isRegisteredPlayer: registeredUserIds.has(row.user_id),
       }
     })
 
@@ -100,15 +126,17 @@ export default async function ClubMembersPage() {
         isOwner: true,
         isSelf: club.owner_id === user.id,
         joinedAt: club.created_at,
+        isRegisteredPlayer: registeredUserIds.has(club.owner_id),
       })
     }
   }
 
   // Gestion (select de rôle + suppression) réservée au bureau : owner / admin / editor,
   // ou admin plateforme. Un adhérent simple ('member') voit la liste en lecture seule.
+  const platformAdmin = await isPlatformAdmin(user.id)
   const currentRole = members.find((m) => m.isSelf)?.role
   const isBureau = currentRole === 'admin' || currentRole === 'editor'
-  const canManage = Boolean(club) && (club?.owner_id === user.id || isBureau || (await isPlatformAdmin(user.id)))
+  const canManage = Boolean(club) && (club?.owner_id === user.id || isBureau || platformAdmin)
 
   return (
     <main className="min-h-screen bg-app font-dmsans text-text">
@@ -136,7 +164,13 @@ export default async function ClubMembersPage() {
           </div>
         ) : (
           <>
-            <ClubMembersManager members={members} canManage={canManage} />
+            <ClubMembersManager
+              members={members}
+              canManage={canManage}
+              participants={participants}
+              isPlatformAdmin={platformAdmin}
+              clubId={club.id}
+            />
             {canManage && (
               <p className="mt-8 text-xs text-muted">
                 Pour inviter de nouveaux membres ou gérer le code d&apos;invitation,{' '}

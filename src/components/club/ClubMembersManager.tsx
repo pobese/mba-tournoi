@@ -3,12 +3,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Loader2, Crown, Shield, Pencil, Trash2 } from 'lucide-react'
+import { Loader2, Crown, Shield, Pencil, Trash2, Send } from 'lucide-react'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { updateClubMemberRole, removeClubMember } from '@/app/settings/club-actions'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog'
+import { updateClubMemberRole, removeClubMember, inviteMemberToClub } from '@/app/settings/club-actions'
 import { formatDate } from '@/lib/utils'
 
 export interface ClubMemberFullRow {
@@ -19,6 +22,15 @@ export interface ClubMemberFullRow {
   isOwner: boolean
   isSelf: boolean
   joinedAt: string | null
+  /** A un profil joueur rattaché (a fait le matching) → bulle « ✅ Inscrit » pour l'admin plateforme. */
+  isRegisteredPlayer: boolean
+}
+
+/** Joueur ayant participé à un tournoi du club, sans compte lié. */
+export interface ParticipantEntry {
+  id: string
+  name: string
+  level: number | null
 }
 
 const ROLE_LABELS: Record<ClubMemberFullRow['role'], string> = {
@@ -37,7 +49,15 @@ const roleSelectCls =
   'rounded-md border border-subtle bg-surface-alt px-2 py-1 text-xs font-medium text-text ' +
   'focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50'
 
-export function ClubMembersManager({ members, canManage }: { members: ClubMemberFullRow[]; canManage: boolean }) {
+export function ClubMembersManager({
+  members, canManage, participants = [], isPlatformAdmin = false, clubId,
+}: {
+  members: ClubMemberFullRow[]
+  canManage: boolean
+  participants?: ParticipantEntry[]
+  isPlatformAdmin?: boolean
+  clubId?: string
+}) {
   const router = useRouter()
   const [busyId, setBusyId] = useState<string | null>(null)
 
@@ -77,6 +97,7 @@ export function ClubMembersManager({ members, canManage }: { members: ClubMember
             key={m.id}
             member={m}
             canManage={canManage}
+            showRegistered={isPlatformAdmin}
             busy={busyId === m.id}
             onChangeRole={changeRole}
             onRemove={remove}
@@ -90,13 +111,128 @@ export function ClubMembersManager({ members, canManage }: { members: ClubMember
             key={m.id}
             member={m}
             canManage={canManage}
+            showRegistered={isPlatformAdmin}
             busy={busyId === m.id}
             onChangeRole={changeRole}
             onRemove={remove}
           />
         ))}
       </Section>
+
+      {isPlatformAdmin && clubId && (
+        <section>
+          <h2 className="mb-1 font-bebas text-2xl tracking-[1px] text-text">
+            Participants aux tournois <span className="text-muted">({participants.length})</span>
+          </h2>
+          <p className="mb-3 text-sm text-muted">
+            Joueurs ayant participé à un tournoi du club, sans compte RacketClub.
+          </p>
+          {participants.length === 0 ? (
+            <p className="rounded-xl border border-subtle bg-surface px-5 py-6 text-center text-sm text-muted">
+              Aucun participant sans compte.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2.5">
+              {participants.map((p) => (
+                <ParticipantRow key={p.id} participant={p} clubId={clubId} />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </div>
+  )
+}
+
+function LevelStars({ level }: { level: number | null }) {
+  if (!level) return null
+  return (
+    <span className="text-[0.7rem] tracking-tight text-accent" aria-label={`Niveau ${level} sur 5`}>
+      {'★'.repeat(level)}
+      <span className="text-muted">{'☆'.repeat(Math.max(0, 5 - level))}</span>
+    </span>
+  )
+}
+
+function ParticipantRow({ participant, clubId }: { participant: ParticipantEntry; clubId: string }) {
+  const [open, setOpen] = useState(false)
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = email.trim()
+    if (!trimmed) return
+    setBusy(true)
+    try {
+      const res = await inviteMemberToClub(clubId, trimmed, 'member')
+      if (res?.error) {
+        toast.error('Invitation échouée', { description: res.error })
+        return
+      }
+      toast.success(`Invitation envoyée à ${trimmed}`, {
+        description: 'Partagez le lien d’invitation depuis les Paramètres.',
+      })
+      setOpen(false)
+      setEmail('')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <li className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-subtle bg-surface px-4 py-3.5 ${CARD_HOVER}`}>
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-alt text-sm font-bold text-muted">
+          {participant.name[0]?.toUpperCase() ?? '?'}
+        </span>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-medium text-text">{participant.name}</span>
+            <LevelStars level={participant.level} />
+          </div>
+          <div className="text-xs text-muted">○ Non inscrit</div>
+        </div>
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <button className="shrink-0 rounded-md border border-subtle bg-surface-alt px-3 py-1.5 text-xs font-semibold text-text transition-colors hover:border-primary hover:text-primary">
+            Inviter →
+          </button>
+        </DialogTrigger>
+        <DialogContent className="border-subtle bg-surface">
+          <DialogHeader>
+            <DialogTitle className="text-text">Inviter {participant.name}</DialogTitle>
+            <DialogDescription className="text-muted">
+              Entrez l’email de {participant.name}. L’invitation crée un accès au club ; copiez ensuite le lien
+              d’invitation depuis les Paramètres pour l’envoyer.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <input
+              type="email"
+              required
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@exemple.fr"
+              className="w-full rounded-md border border-subtle bg-surface-alt px-3 py-2.5 text-sm text-text transition placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <DialogFooter>
+              <button
+                type="submit"
+                disabled={busy}
+                className="btn-primary inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Envoyer l’invitation
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </li>
   )
 }
 
@@ -131,10 +267,11 @@ const ROLE_ICON: Partial<Record<ClubMemberFullRow['role'], { Icon: typeof Crown;
 }
 
 function MemberRow({
-  member: m, canManage, busy, onChangeRole, onRemove,
+  member: m, canManage, showRegistered, busy, onChangeRole, onRemove,
 }: {
   member: ClubMemberFullRow
   canManage: boolean
+  showRegistered: boolean
   busy: boolean
   onChangeRole: (id: string, role: 'admin' | 'editor' | 'member') => void
   onRemove: (id: string, name: string) => void
@@ -155,11 +292,16 @@ function MemberRow({
           </span>
         )}
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="truncate text-sm font-medium text-text">{m.displayName}</span>
             {m.isSelf && (
               <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-primary">
                 vous
+              </span>
+            )}
+            {showRegistered && m.isRegisteredPlayer && (
+              <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[0.6rem] font-bold text-primary">
+                ✅ Inscrit
               </span>
             )}
           </div>
