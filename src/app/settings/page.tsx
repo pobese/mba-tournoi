@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Users } from 'lucide-react'
+import { ArrowLeft, Users } from 'lucide-react'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { ClubManager, type ClubData, type ClubMemberRow } from '@/components/settings/ClubManager'
@@ -95,6 +95,13 @@ export default async function SettingsPage() {
       <MarketingNav />
 
       <div className="mx-auto max-w-3xl space-y-6 px-4 pb-16 pt-24 sm:px-8">
+        <Link
+          href="/?view=club"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" /> Retour
+        </Link>
+
         <div>
           <h1 className="font-bebas text-4xl tracking-[2px] text-text sm:text-5xl">PARAMÈTRES</h1>
           <p className="mt-1 text-sm text-muted">Gérez votre club et ses adhérents</p>
