@@ -22,8 +22,6 @@ export interface ClubMemberFullRow {
   isOwner: boolean
   isSelf: boolean
   joinedAt: string | null
-  /** A un profil joueur rattaché (a fait le matching) → bulle « ✅ Inscrit » pour l'admin plateforme. */
-  isRegisteredPlayer: boolean
 }
 
 /** Joueur ayant participé à un tournoi du club, sans compte lié. */
@@ -85,9 +83,19 @@ export function ClubMembersManager({
     }
   }
 
-  // Bureau = membres qui gèrent le club ; Adhérents = membres simples.
+  // Bureau = membres qui gèrent le club. Adhérents = adhérents inscrits (role
+  // 'member') FUSIONNÉS avec les joueurs du club sans compte, triés par nom.
   const bureau = members.filter((m) => m.role !== 'member')
-  const adherents = members.filter((m) => m.role === 'member')
+  const adherentMembers = members.filter((m) => m.role === 'member')
+
+  type Adherent =
+    | { kind: 'member'; sortName: string; member: ClubMemberFullRow }
+    | { kind: 'participant'; sortName: string; participant: ParticipantEntry }
+
+  const adherents: Adherent[] = [
+    ...adherentMembers.map((m) => ({ kind: 'member' as const, sortName: m.displayName, member: m })),
+    ...participants.map((p) => ({ kind: 'participant' as const, sortName: p.name, participant: p })),
+  ].sort((a, b) => a.sortName.localeCompare(b.sortName, 'fr', { sensitivity: 'base' }))
 
   return (
     <div className="flex flex-col gap-8">
@@ -106,40 +114,27 @@ export function ClubMembersManager({
       </Section>
 
       <Section title="Adhérents" count={adherents.length} emptyLabel="Aucun adhérent pour l'instant.">
-        {adherents.map((m) => (
-          <MemberRow
-            key={m.id}
-            member={m}
-            canManage={canManage}
-            showRegistered={isPlatformAdmin}
-            busy={busyId === m.id}
-            onChangeRole={changeRole}
-            onRemove={remove}
-          />
-        ))}
-      </Section>
-
-      {isPlatformAdmin && clubId && (
-        <section>
-          <h2 className="mb-1 font-bebas text-2xl tracking-[1px] text-text">
-            Participants aux tournois <span className="text-muted">({participants.length})</span>
-          </h2>
-          <p className="mb-3 text-sm text-muted">
-            Joueurs ayant participé à un tournoi du club, sans compte RacketClub.
-          </p>
-          {participants.length === 0 ? (
-            <p className="rounded-xl border border-subtle bg-surface px-5 py-6 text-center text-sm text-muted">
-              Aucun participant sans compte.
-            </p>
+        {adherents.map((a) =>
+          a.kind === 'member' ? (
+            <MemberRow
+              key={a.member.id}
+              member={a.member}
+              canManage={canManage}
+              showRegistered={isPlatformAdmin}
+              busy={busyId === a.member.id}
+              onChangeRole={changeRole}
+              onRemove={remove}
+            />
           ) : (
-            <ul className="flex flex-col gap-2.5">
-              {participants.map((p) => (
-                <ParticipantRow key={p.id} participant={p} clubId={clubId} />
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+            <ParticipantRow
+              key={a.participant.id}
+              participant={a.participant}
+              clubId={clubId}
+              isPlatformAdmin={isPlatformAdmin}
+            />
+          ),
+        )}
+      </Section>
     </div>
   )
 }
@@ -154,7 +149,13 @@ function LevelStars({ level }: { level: number | null }) {
   )
 }
 
-function ParticipantRow({ participant, clubId }: { participant: ParticipantEntry; clubId: string }) {
+function ParticipantRow({
+  participant, clubId, isPlatformAdmin,
+}: {
+  participant: ParticipantEntry
+  clubId?: string
+  isPlatformAdmin: boolean
+}) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
@@ -162,7 +163,7 @@ function ParticipantRow({ participant, clubId }: { participant: ParticipantEntry
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     const trimmed = email.trim()
-    if (!trimmed) return
+    if (!trimmed || !clubId) return
     setBusy(true)
     try {
       const res = await inviteMemberToClub(clubId, trimmed, 'member')
@@ -191,10 +192,12 @@ function ParticipantRow({ participant, clubId }: { participant: ParticipantEntry
             <span className="truncate text-sm font-medium text-text">{participant.name}</span>
             <LevelStars level={participant.level} />
           </div>
-          <div className="text-xs text-muted">○ Non inscrit</div>
+          {/* Le statut « pas de compte » n'est révélé qu'à l'admin plateforme. */}
+          {isPlatformAdmin && <div className="text-xs text-muted">○ Pas encore inscrit</div>}
         </div>
       </div>
 
+      {isPlatformAdmin && clubId && (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <button className="shrink-0 rounded-md border border-subtle bg-surface-alt px-3 py-1.5 text-xs font-semibold text-text transition-colors hover:border-primary hover:text-primary">
@@ -232,6 +235,7 @@ function ParticipantRow({ participant, clubId }: { participant: ParticipantEntry
           </form>
         </DialogContent>
       </Dialog>
+      )}
     </li>
   )
 }
@@ -299,7 +303,7 @@ function MemberRow({
                 vous
               </span>
             )}
-            {showRegistered && m.isRegisteredPlayer && (
+            {showRegistered && (
               <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[0.6rem] font-bold text-primary">
                 ✅ Inscrit
               </span>

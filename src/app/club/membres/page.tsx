@@ -47,31 +47,17 @@ export default async function ClubMembersPage() {
   }
 
   let members: ClubMemberFullRow[] = []
-  const participants: ParticipantEntry[] = []
-  const registeredUserIds = new Set<string>()
+  let participants: ParticipantEntry[] = []
   if (club) {
-    // Joueurs ayant participé à un tournoi du club, séparés selon qu'ils ont
-    // déjà un compte lié (user_id) ou non.
-    const { data: clubTournaments } = await admin
-      .from('tournaments').select('id').eq('club_id', club.id) as { data: { id: string }[] | null }
-    const tournamentIds = (clubTournaments ?? []).map((t) => t.id)
-    if (tournamentIds.length > 0) {
-      const { data: tps } = await admin
-        .from('tournament_players')
-        .select('player:players(id, name, level, user_id)')
-        .in('tournament_id', tournamentIds) as {
-          data: { player: { id: string; name: string; level: number | null; user_id: string | null } | null }[] | null
-        }
-      const seen = new Set<string>()
-      for (const r of tps ?? []) {
-        const p = r.player
-        if (!p || seen.has(p.id)) continue
-        seen.add(p.id)
-        if (p.user_id) registeredUserIds.add(p.user_id)
-        else participants.push({ id: p.id, name: p.name, level: p.level })
-      }
-      participants.sort((a, b) => a.name.localeCompare(b.name))
-    }
+    // Joueurs du club sans compte RacketClub (roster ayant joué des tournois mais
+    // pas encore inscrit) → fusionnés dans la section Adhérents.
+    const { data: rosterRows } = await admin
+      .from('players')
+      .select('id, name, level')
+      .eq('club_id', club.id)
+      .is('user_id', null)
+      .order('name', { ascending: true }) as { data: { id: string; name: string; level: number | null }[] | null }
+    participants = (rosterRows ?? []).map((p) => ({ id: p.id, name: p.name, level: p.level }))
 
     const { data: rows } = await admin
       .from('club_members')
@@ -112,7 +98,6 @@ export default async function ClubMembersPage() {
         isOwner,
         isSelf: row.user_id === user.id,
         joinedAt: row.joined_at,
-        isRegisteredPlayer: registeredUserIds.has(row.user_id),
       }
     })
 
@@ -126,7 +111,6 @@ export default async function ClubMembersPage() {
         isOwner: true,
         isSelf: club.owner_id === user.id,
         joinedAt: club.created_at,
-        isRegisteredPlayer: registeredUserIds.has(club.owner_id),
       })
     }
   }
