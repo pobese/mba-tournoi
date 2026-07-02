@@ -18,6 +18,10 @@ export const CreatePlayerSchema = z.object({
   name: z.string().min(PLAYER_NAME_MIN).max(PLAYER_NAME_MAX),
   level: z.number().int().min(PLAYER_LEVEL_MIN).max(PLAYER_LEVEL_MAX).default(3),
   email: z.string().email().optional().or(z.literal('')),
+  // Indices interclub : club lié (si présent en DB) + club/ville en texte libre.
+  club_id: z.string().uuid().optional().nullable(),
+  club_name_hint: z.string().max(80).optional().nullable(),
+  city_hint: z.string().max(80).optional().nullable(),
 })
 export type CreatePlayerInput = z.infer<typeof CreatePlayerSchema>
 

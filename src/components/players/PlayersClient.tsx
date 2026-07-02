@@ -18,7 +18,11 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { cn } from '@/lib/utils'
 import type { Player } from '@/types/app'
 
-type PlayerRow = Pick<Player, 'id' | 'name' | 'level' | 'created_at'>
+export type PlayerRow = Pick<Player, 'id' | 'name' | 'level' | 'created_at'> & {
+  club_id?: string | null
+  club_name_hint?: string | null
+  city_hint?: string | null
+}
 
 interface PlayersClientProps {
   initialPlayers: PlayerRow[]
@@ -189,13 +193,18 @@ export function PlayersClient({ initialPlayers }: PlayersClientProps) {
                 {/* Avatar */}
                 <PlayerAvatar name={player.name} level={player.level ?? 3} size="sm" />
 
-                {/* Nom + niveau */}
+                {/* Nom + niveau + club/ville */}
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium text-sm truncate">{player.name}</p>
                   <p className="text-muted text-xs">
                     {'★'.repeat(player.level ?? 3)}
                     <span className="text-subtle">{'★'.repeat(5 - (player.level ?? 3))}</span>
                   </p>
+                  {(player.club_name_hint || player.city_hint) && (
+                    <p className="text-muted text-xs truncate">
+                      {[player.club_name_hint, player.city_hint].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                 </div>
 
                 {/* Actions (masquées en mode sélection) */}

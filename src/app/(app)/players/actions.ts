@@ -7,6 +7,12 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { CreatePlayerSchema, UpdatePlayerSchema, DeletePlayersSchema } from '@/lib/validations/schemas'
 import { freezeTournament } from '@/lib/tournament-archive'
 
+/** Champ FormData optionnel → texte nettoyé ou null (permet d'effacer en édition). */
+function orNull(value: FormDataEntryValue | undefined): string | null {
+  const s = typeof value === 'string' ? value.trim() : ''
+  return s.length > 0 ? s : null
+}
+
 export async function createPlayer(formData: FormData) {
   const supabase = await createServerSupabaseClient()
   const {
@@ -20,6 +26,9 @@ export async function createPlayer(formData: FormData) {
     name: raw['name'],
     level: Number(raw['level']),
     email: raw['email'] ?? undefined,
+    club_id: orNull(raw['club_id']),
+    club_name_hint: orNull(raw['club_name_hint']),
+    city_hint: orNull(raw['city_hint']),
   })
   if (!parsed.success) {
     return { error: parsed.error.flatten().fieldErrors }
@@ -51,6 +60,9 @@ export async function updatePlayer(formData: FormData) {
     name: raw['name'],
     level: raw['level'] ? Number(raw['level']) : undefined,
     email: raw['email'] ?? undefined,
+    club_id: orNull(raw['club_id']),
+    club_name_hint: orNull(raw['club_name_hint']),
+    city_hint: orNull(raw['city_hint']),
   })
   if (!parsed.success) {
     return { error: parsed.error.flatten().fieldErrors }

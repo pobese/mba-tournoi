@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/PageHeader'
-import { PlayersClient } from '@/components/players/PlayersClient'
-import type { Player } from '@/types/app'
+import { PlayersClient, type PlayerRow } from '@/components/players/PlayersClient'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,10 +15,10 @@ export default async function PlayersPage() {
 
   const { data, error } = await supabase
     .from('players')
-    .select('id, name, level, created_at')
+    .select('id, name, level, created_at, club_id, club_name_hint, city_hint')
     .eq('created_by', user.id)
     .order('name') as {
-      data: Pick<Player, 'id' | 'name' | 'level' | 'created_at'>[] | null
+      data: PlayerRow[] | null
       error: unknown
     }
 
