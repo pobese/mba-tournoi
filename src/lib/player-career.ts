@@ -8,13 +8,16 @@ import { TOURNAMENT_STATUS, TOURNAMENT_TYPE_LABELS } from '@/lib/constants'
 //   - rounds   → player_tournament_stats (par player_id)
 //   - american → standings (par player_id, ou par team_id si équipes)
 //   - classic  → pool_standings (par team_id)
-// Les tournois GELÉS ont eu leurs lignes vives purgées (voir tournament-archive)
-// → ils sont naturellement absents de cet historique fondé sur les identifiants.
+// L'historique des MATCHS vient directement de `matches` (JOIN teams). Les
+// tournois GELÉS ont eu leurs lignes vives purgées → absents de cet historique
+// fondé sur les identifiants.
 // ════════════════════════════════════════════════════════════════════════════
 
 const NEW_MEMBER_DAYS = 30
 const DAY_MS = 86_400_000
 const MAX_CHAMPIONSHIP_BADGES = 3
+const MAX_RECENT_MATCHES = 10
+const WIN_STREAK_BADGE = 5
 
 export interface CareerTournament {
   id: string
@@ -25,33 +28,59 @@ export interface CareerTournament {
   won: boolean
 }
 
+export interface MatchResult {
+  id: string
+  tournamentName: string
+  date: string | null
+  opponent: string
+  score: string
+  won: boolean
+  goalAverage: number
+}
+
 export interface PlayerCareer {
   linked: boolean
+  level: number | null
+  memberSince: string | null
   tournamentsPlayed: number
   wins: number
-  matches: number
+  matchesPlayed: number
   goalAverage: number
   /** Noms des tournois gagnés (rang 1, terminés), pour le badge Vainqueur. */
   championships: string[]
+  finalist: boolean
+  maxWinStreak: number
+  playedThisMonth: boolean
+  isClubMember: boolean
   clubName: string | null
   isNewMember: boolean
-  /** Historique des tournois joués, du plus récent au plus ancien. */
   tournaments: CareerTournament[]
+  recentMatches: MatchResult[]
 }
 
-const emptyCareer = (
-  linked: boolean,
-  club: { name: string; isNew: boolean } | null,
-): PlayerCareer => ({
+interface ClubInfo {
+  name: string
+  isNew: boolean
+  joinedAt: string | null
+}
+
+const emptyCareer = (linked: boolean, club: ClubInfo | null): PlayerCareer => ({
   linked,
+  level: null,
+  memberSince: club?.joinedAt ?? null,
   tournamentsPlayed: 0,
   wins: 0,
-  matches: 0,
+  matchesPlayed: 0,
   goalAverage: 0,
   championships: [],
+  finalist: false,
+  maxWinStreak: 0,
+  playedThisMonth: false,
+  isClubMember: club != null,
   clubName: club?.name ?? null,
   isNewMember: club?.isNew ?? false,
   tournaments: [],
+  recentMatches: [],
 })
 
 /** Liste PostgREST pour un filtre `.in.` : "(uuid1,uuid2)". */
@@ -63,7 +92,7 @@ async function resolveClub(
   admin: SupabaseClient,
   userId: string,
   players: { club_id: string | null }[],
-): Promise<{ name: string; isNew: boolean } | null> {
+): Promise<ClubInfo | null> {
   const { data: memberships } = await admin
     .from('club_members')
     .select('club_id, joined_at, club:clubs(name)')
@@ -79,29 +108,159 @@ async function resolveClub(
 
   if (chosen?.club?.name) {
     const isNew = Date.now() - new Date(chosen.joined_at).getTime() < NEW_MEMBER_DAYS * DAY_MS
-    return { name: chosen.club.name, isNew }
+    return { name: chosen.club.name, isNew, joinedAt: chosen.joined_at }
   }
 
   // Sinon : propriétaire d'un club (pas stocké dans club_members).
   const { data: owned } = await admin
     .from('clubs')
-    .select('name')
+    .select('name, created_at')
     .eq('owner_id', userId)
     .eq('is_active', true)
     .limit(1)
-    .maybeSingle() as { data: { name: string } | null }
-  return owned ? { name: owned.name, isNew: false } : null
+    .maybeSingle() as { data: { name: string; created_at: string } | null }
+  return owned ? { name: owned.name, isNew: false, joinedAt: owned.created_at } : null
+}
+
+/** Score orienté côté joueur : sets détaillés si dispos, sinon totaux. */
+function formatScore(
+  setScores: unknown,
+  mine: number | null,
+  opp: number | null,
+  myTeamIsOne: boolean,
+): string {
+  if (Array.isArray(setScores) && setScores.length > 0) {
+    return setScores
+      .filter((s): s is [number, number] => Array.isArray(s) && s.length >= 2)
+      .map((s) => (myTeamIsOne ? `${s[0]}-${s[1]}` : `${s[1]}-${s[0]}`))
+      .join(', ')
+  }
+  if (mine != null && opp != null) return `${mine} — ${opp}`
+  return ''
+}
+
+interface MatchRow {
+  id: string
+  tournament_id: string
+  team1_id: string | null
+  team2_id: string | null
+  score_team1: number | null
+  score_team2: number | null
+  set_scores: unknown
+  winner_team_id: string | null
+  created_at: string
+}
+
+/** Historique des matchs + stats dérivées (série de victoires, mois en cours). */
+async function loadMatches(
+  admin: SupabaseClient,
+  myTeamIds: string[],
+): Promise<{ recent: MatchResult[]; played: number; thisMonth: boolean; maxStreak: number }> {
+  if (myTeamIds.length === 0) return { recent: [], played: 0, thisMonth: false, maxStreak: 0 }
+  const mine = new Set(myTeamIds)
+
+  const { data: rows } = await admin
+    .from('matches')
+    .select('id, tournament_id, team1_id, team2_id, score_team1, score_team2, set_scores, winner_team_id, created_at')
+    .eq('status', 'done')
+    .or(`team1_id.in.${inList(myTeamIds)},team2_id.in.${inList(myTeamIds)}`)
+    .order('created_at', { ascending: false }) as { data: MatchRow[] | null }
+
+  const matches = rows ?? []
+  if (matches.length === 0) return { recent: [], played: 0, thisMonth: false, maxStreak: 0 }
+
+  // Résolution des noms d'adversaires + noms de tournois.
+  const oppIds = new Set<string>()
+  const tournamentIds = new Set<string>()
+  for (const m of matches) {
+    tournamentIds.add(m.tournament_id)
+    const opp = mine.has(m.team1_id ?? '') ? m.team2_id : m.team1_id
+    if (opp) oppIds.add(opp)
+  }
+
+  const [{ data: teams }, { data: tournaments }] = await Promise.all([
+    admin
+      .from('teams')
+      .select('id, name, player1:players!teams_player1_id_fkey(name), player2:players!teams_player2_id_fkey(name)')
+      .in('id', [...oppIds]) as unknown as Promise<{
+        data: { id: string; name: string | null; player1: { name: string } | null; player2: { name: string } | null }[] | null
+      }>,
+    admin.from('tournaments').select('id, name').in('id', [...tournamentIds]) as unknown as Promise<{
+      data: { id: string; name: string }[] | null
+    }>,
+  ])
+
+  const teamName = new Map<string, string>()
+  for (const t of teams ?? []) {
+    const players = t.player2 ? `${t.player1?.name ?? '?'} / ${t.player2.name}` : t.player1?.name ?? '—'
+    teamName.set(t.id, t.name ?? players)
+  }
+  const tournamentName = new Map<string, string>()
+  for (const t of tournaments ?? []) tournamentName.set(t.id, t.name)
+
+  const now = new Date()
+  const curMonth = now.getMonth()
+  const curYear = now.getFullYear()
+  let thisMonth = false
+
+  const recent: MatchResult[] = matches.slice(0, MAX_RECENT_MATCHES).map((m) => {
+    const myTeamIsOne = mine.has(m.team1_id ?? '')
+    const myScore = myTeamIsOne ? m.score_team1 : m.score_team2
+    const oppScore = myTeamIsOne ? m.score_team2 : m.score_team1
+    const oppId = myTeamIsOne ? m.team2_id : m.team1_id
+    return {
+      id: m.id,
+      tournamentName: tournamentName.get(m.tournament_id) ?? '—',
+      date: m.created_at,
+      opponent: (oppId && teamName.get(oppId)) || '—',
+      score: formatScore(m.set_scores, myScore, oppScore, myTeamIsOne),
+      won: m.winner_team_id != null && mine.has(m.winner_team_id),
+      goalAverage: myScore != null && oppScore != null ? myScore - oppScore : 0,
+    }
+  })
+
+  for (const m of matches) {
+    const d = new Date(m.created_at)
+    if (d.getMonth() === curMonth && d.getFullYear() === curYear) {
+      thisMonth = true
+      break
+    }
+  }
+
+  // Plus longue série de victoires consécutives DANS un même tournoi.
+  const byTournament = new Map<string, { at: string; won: boolean }[]>()
+  for (const m of matches) {
+    const list = byTournament.get(m.tournament_id) ?? []
+    list.push({ at: m.created_at, won: m.winner_team_id != null && mine.has(m.winner_team_id) })
+    byTournament.set(m.tournament_id, list)
+  }
+  let maxStreak = 0
+  for (const list of byTournament.values()) {
+    list.sort((a, b) => a.at.localeCompare(b.at))
+    let run = 0
+    for (const e of list) {
+      run = e.won ? run + 1 : 0
+      if (run > maxStreak) maxStreak = run
+    }
+  }
+
+  return { recent, played: matches.length, thisMonth, maxStreak }
 }
 
 export async function getPlayerCareer(admin: SupabaseClient, userId: string): Promise<PlayerCareer> {
   const { data: players } = await admin
     .from('players')
-    .select('id, club_id')
-    .eq('user_id', userId) as { data: { id: string; club_id: string | null }[] | null }
+    .select('id, club_id, level')
+    .eq('user_id', userId) as { data: { id: string; club_id: string | null; level: number | null }[] | null }
 
   const linkedIds = (players ?? []).map((p) => p.id)
   const club = await resolveClub(admin, userId, players ?? [])
   if (linkedIds.length === 0) return emptyCareer(false, club)
+
+  const level = (players ?? []).reduce<number | null>(
+    (max, p) => (p.level != null && (max == null || p.level > max) ? p.level : max),
+    null,
+  )
 
   // Tournois joués (participation).
   const { data: parts } = await admin
@@ -125,11 +284,10 @@ export async function getPlayerCareer(admin: SupabaseClient, userId: string): Pr
   }
 
   // Résultats par tournoi, agrégés (un même compte peut avoir plusieurs profils).
-  const result = new Map<string, { wins: number; matches: number; ga: number; rank: number | null }>()
-  const bump = (tid: string, wins: number, matches: number, ga: number, rank: number | null) => {
-    const cur = result.get(tid) ?? { wins: 0, matches: 0, ga: 0, rank: null }
+  const result = new Map<string, { wins: number; ga: number; rank: number | null }>()
+  const bump = (tid: string, wins: number, ga: number, rank: number | null) => {
+    const cur = result.get(tid) ?? { wins: 0, ga: 0, rank: null }
     cur.wins += wins
-    cur.matches += matches
     cur.ga += ga
     if (rank != null) cur.rank = cur.rank == null ? rank : Math.min(cur.rank, rank)
     result.set(tid, cur)
@@ -138,29 +296,26 @@ export async function getPlayerCareer(admin: SupabaseClient, userId: string): Pr
   // rounds
   const { data: pts } = await admin
     .from('player_tournament_stats')
-    .select('tournament_id, total_wins, total_points_for, total_points_against, rounds_played, current_rank')
+    .select('tournament_id, total_wins, total_points_for, total_points_against, current_rank')
     .in('player_id', linkedIds) as {
       data: {
         tournament_id: string; total_wins: number; total_points_for: number
-        total_points_against: number; rounds_played: number; current_rank: number | null
+        total_points_against: number; current_rank: number | null
       }[] | null
     }
   for (const s of pts ?? []) {
-    bump(s.tournament_id, s.total_wins, s.rounds_played, s.total_points_for - s.total_points_against, s.current_rank)
+    bump(s.tournament_id, s.total_wins, s.total_points_for - s.total_points_against, s.current_rank)
   }
 
   // american — standings par joueur
   const { data: stand } = await admin
     .from('standings')
-    .select('tournament_id, wins, matches_played, points_scored, points_conceded, rank')
+    .select('tournament_id, wins, points_scored, points_conceded, rank')
     .in('player_id', linkedIds) as {
-      data: {
-        tournament_id: string; wins: number; matches_played: number
-        points_scored: number; points_conceded: number; rank: number | null
-      }[] | null
+      data: { tournament_id: string; wins: number; points_scored: number; points_conceded: number; rank: number | null }[] | null
     }
   for (const s of stand ?? []) {
-    bump(s.tournament_id, s.wins, s.matches_played, s.points_scored - s.points_conceded, s.rank)
+    bump(s.tournament_id, s.wins, s.points_scored - s.points_conceded, s.rank)
   }
 
   // classic / american-équipes — via les équipes du joueur
@@ -175,50 +330,43 @@ export async function getPlayerCareer(admin: SupabaseClient, userId: string): Pr
   const teamIds = [...teamTournament.keys()]
 
   if (teamIds.length > 0) {
-    // classic → pool_standings
     const { data: pool } = await admin
       .from('pool_standings')
-      .select('team_id, wins, matches_played, points_for, points_against, global_rank')
+      .select('team_id, wins, points_for, points_against, global_rank')
       .in('team_id', teamIds) as {
-        data: {
-          team_id: string; wins: number; matches_played: number
-          points_for: number; points_against: number; global_rank: number | null
-        }[] | null
+        data: { team_id: string; wins: number; points_for: number; points_against: number; global_rank: number | null }[] | null
       }
     for (const s of pool ?? []) {
       const tid = teamTournament.get(s.team_id)
-      if (tid) bump(tid, s.wins, s.matches_played, s.points_for - s.points_against, s.global_rank)
+      if (tid) bump(tid, s.wins, s.points_for - s.points_against, s.global_rank)
     }
 
-    // american-équipes → standings par team_id
     const { data: standTeams } = await admin
       .from('standings')
-      .select('tournament_id, wins, matches_played, points_scored, points_conceded, rank')
+      .select('tournament_id, wins, points_scored, points_conceded, rank')
       .in('team_id', teamIds) as {
-        data: {
-          tournament_id: string; wins: number; matches_played: number
-          points_scored: number; points_conceded: number; rank: number | null
-        }[] | null
+        data: { tournament_id: string; wins: number; points_scored: number; points_conceded: number; rank: number | null }[] | null
       }
     for (const s of standTeams ?? []) {
-      bump(s.tournament_id, s.wins, s.matches_played, s.points_scored - s.points_conceded, s.rank)
+      bump(s.tournament_id, s.wins, s.points_scored - s.points_conceded, s.rank)
     }
   }
 
-  // Agrégats + historique.
+  // Agrégats + historique tournois.
   let wins = 0
-  let matches = 0
   let goalAverage = 0
+  let finalist = false
   const championships: string[] = []
   const history: CareerTournament[] = []
 
   for (const [tid, meta] of tournaments) {
-    const r = result.get(tid) ?? { wins: 0, matches: 0, ga: 0, rank: null }
+    const r = result.get(tid) ?? { wins: 0, ga: 0, rank: null }
     wins += r.wins
-    matches += r.matches
     goalAverage += r.ga
-    const won = meta.status === TOURNAMENT_STATUS.FINISHED && r.rank === 1
+    const finished = meta.status === TOURNAMENT_STATUS.FINISHED
+    const won = finished && r.rank === 1
     if (won) championships.push(meta.name)
+    if (finished && r.rank === 2) finalist = true
     history.push({
       id: tid,
       name: meta.name,
@@ -230,15 +378,27 @@ export async function getPlayerCareer(admin: SupabaseClient, userId: string): Pr
   }
   history.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
 
+  const { recent, played, thisMonth, maxStreak } = await loadMatches(admin, teamIds)
+
   return {
     linked: true,
+    level,
+    memberSince: club?.joinedAt ?? null,
     tournamentsPlayed: tournaments.size,
     wins,
-    matches,
+    matchesPlayed: played,
     goalAverage,
     championships: championships.slice(0, MAX_CHAMPIONSHIP_BADGES),
+    finalist,
+    maxWinStreak: maxStreak,
+    playedThisMonth: thisMonth,
+    isClubMember: club != null,
     clubName: club?.name ?? null,
     isNewMember: club?.isNew ?? false,
     tournaments: history,
+    recentMatches: recent,
   }
 }
+
+/** Seuil du badge « Série de 5 victoires » — réutilisé côté UI. */
+export const WIN_STREAK_THRESHOLD = WIN_STREAK_BADGE
