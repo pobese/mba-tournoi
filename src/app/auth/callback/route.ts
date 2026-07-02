@@ -46,6 +46,39 @@ async function acceptPendingClubInvitations(supabase: SupabaseClient) {
   }
 }
 
+/**
+ * Cherche, dans le club choisi à l'inscription, les profils joueurs non encore
+ * liés dont le nom ressemble au prénom du nouveau compte (trigrammes pg_trgm via
+ * la fonction match_club_players). Renvoie l'URL de redirection : soit le flux de
+ * « claim » (/?view=player&claiming=true&match=…) s'il y a des candidats, soit la
+ * destination normale. Best-effort : ne casse jamais l'authentification.
+ */
+async function resolvePostAuthRedirect(
+  supabase: SupabaseClient,
+  origin: string,
+  dest: string,
+): Promise<string> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    const meta = (user?.user_metadata ?? {}) as { club_id?: unknown; full_name?: unknown }
+    const clubId = typeof meta.club_id === 'string' ? meta.club_id : null
+    if (!user || !clubId) return `${origin}${dest}`
+
+    const firstName = String(meta.full_name ?? '').trim().split(/\s+/)[0] ?? ''
+    if (firstName.length < 2) return `${origin}${dest}`
+
+    const admin = createServiceRoleClient()
+    const { data } = await admin.rpc('match_club_players', { p_club_id: clubId, p_name: firstName })
+    const ids = ((data ?? []) as { id: string }[]).map((r) => r.id)
+    if (ids.length === 0) return `${origin}${dest}`
+
+    return `${origin}/?view=player&claiming=true&match=${ids.join(',')}`
+  } catch (e) {
+    console.error('resolvePostAuthRedirect:', e instanceof Error ? e.message : e)
+    return `${origin}${dest}`
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
@@ -74,8 +107,8 @@ export async function GET(request: Request) {
     if (!error) {
       await acceptPendingClubInvitations(supabase)
       // `next` doit rester un chemin interne (anti open-redirect).
-      const dest = next.startsWith('/') ? next : '/'
-      return NextResponse.redirect(`${origin}${dest}`)
+      const dest = next.startsWith('/') && !next.startsWith('//') ? next : '/'
+      return NextResponse.redirect(await resolvePostAuthRedirect(supabase, origin, dest))
     }
   }
 
